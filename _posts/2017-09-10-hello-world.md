@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:      "Welcome to Hux Blog"
+title:      "Welcome to Bryancy Blog"
 subtitle:   " \"Hello World, Hello Blog\""
 date:       2017-09-10 18:00:00
 author:     "Bryancy"
