@@ -20,8 +20,8 @@ tags:
 
 ## 用法
 - 在多台机器执行同一命令
-![](/img/in-post/post-cluster-ref.png)
+![](/img/in-post/post-cluster-20170911/ref.png)
 
 - 在本地集中打印日志
-![](/img/in-post/post-cluster-ref2.jpg)
+![](/img/in-post/post-cluster-20170911/ref2.jpg)
 
