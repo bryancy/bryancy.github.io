@@ -4,7 +4,7 @@ title:      "Welcome to Bryancy Blog"
 subtitle:   " \"Hello World, Hello Blog\""
 date:       2017-09-10 18:00:00
 author:     "Bryancy"
-header-img: "img/post-bg-2015.jpg"
+header-img: "img/post-bg-2017.jpg"
 tags:
     - 生活
 ---

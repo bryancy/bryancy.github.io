@@ -125,15 +125,19 @@
 
     <!-- Image to hack wechat -->
 <!-- <img src="/img/icon_wechat.png" width="0" height="0"> -->
-<!-- <img src="/img/post-bg-2015.jpg" width="0" height="0"> -->
+<!-- <img src="/img/post-bg-2017.jpg" width="0" height="0"> -->
 
 <!-- Post Header -->
 <style type="text/css">
     header.intro-header{
-        background-image: url('/img/post-bg-2015.jpg')
+        position: relative;
+        background-image: url('/img/post-bg-2017.jpg')
     }
+
+    
 </style>
 <header class="intro-header" >
+    <div class="header-mask"></div>
     <div class="container">
         <div class="row">
             <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
@@ -223,43 +227,7 @@
 
 
 
-                <hr>
-
-                
-                <!-- 多说 Share start -->
-                </style>
-                <div class="ds-share"
-                    style="text-align: right"
-                    data-thread-key="/2017/09/10/hello-world"
-                    data-title="Welcome to Bryancy Blog"
-                    data-url="http://localhost:4000/2017/09/10/hello-world/"
-                    data-images="http://localhost:4000/img/post-bg-2015.jpg"
-                    data-content="
-  “Yeah It’s on. ”
-
-
-前言
-
-Bryancy 的 Blog 就这么开通了。
-
-跳过废话，直接看技术实现 
-
-一直想找个地方好好写点东... | Bryancy Blog " >
-                    <div class="ds-share-inline">
-                      <ul  class="ds-share-icons-16">
-                        <li data-toggle="ds-share-icons-more"><a class="ds-more" href="#">分享到：</a></li>
-                        <li><a class="ds-wechat flat" href="javascript:void(0);" data-service="wechat">微信</a></li>
-                        <li><a class="ds-weibo flat" href="javascript:void(0);" data-service="weibo">微博</a></li>
-                        <li><a class="ds-douban flat" href="javascript:void(0);" data-service="douban">豆瓣</a></li>
-                      </ul>
-                      <div class="ds-share-icons-more">
-                      </div>
-                    </div>
-                <hr>
-                </div>
-                <!-- 多说 Share end-->
-                
-
+                <hr style="visibility: hidden;">
 
                 <ul class="pager">
                     
@@ -268,20 +236,12 @@ Bryancy 的 Blog 就这么开通了。
 
 
                 
-                <!-- 多说评论框 start -->
-                <div class="comment">
-                    <div class="ds-thread"
-                        data-thread-key="/2017/09/10/hello-world"
-                        data-title="Welcome to Bryancy Blog"
-                        data-url="http://localhost:4000/2017/09/10/hello-world/" >
-                    </div>
-                </div>
-                <!-- 多说评论框 end -->
-                
 
                 
+            </div>  
 
-            </div>
+    <!-- Side Catalog Container -->
+        
 
     <!-- Sidebar Container -->
             <div class="
@@ -326,23 +286,6 @@ Bryancy 的 Blog 就这么开通了。
 </article>
 
 
-<!-- 多说公共JS代码 start (一个网页只需插入一次) -->
-<script type="text/javascript">
-    // dynamic User by Hux
-    var _user = 'cyblog';
-
-    // duoshuo comment query.
-    var duoshuoQuery = {short_name: _user };
-    (function() {
-        var ds = document.createElement('script');
-        ds.type = 'text/javascript';ds.async = true;
-        ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
-        ds.charset = 'UTF-8';
-        (document.getElementsByTagName('head')[0]
-         || document.getElementsByTagName('body')[0]).appendChild(ds);
-    })();
-</script>
-<!-- 多说公共JS代码 end -->
 
 
 
@@ -363,7 +306,7 @@ Bryancy 的 Blog 就这么开通了。
 </script>
 <!-- anchor-js, Doc:http://bryanbraun.github.io/anchorjs/ -->
 <script>
-    async("http://cdn.bootcss.com/anchor-js/1.1.1/anchor.min.js",function(){
+    async("//cdnjs.cloudflare.com/ajax/libs/anchor-js/1.1.1/anchor.min.js",function(){
         anchors.options = {
           visible: 'always',
           placement: 'right',
@@ -383,7 +326,6 @@ Bryancy 的 Blog 就这么开通了。
         }
     }
 </style>
-
 
 
     <!-- Footer -->
