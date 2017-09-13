@@ -10,9 +10,9 @@
     <meta name="keyword"  content="">
     <link rel="shortcut icon" href="/img/favicon.ico">
 
-    <title>Bryancy Blog</title>
+    <title>集群管理利器-polysh - Bryancy Blog</title>
 
-    <link rel="canonical" href="http://localhost:4000/">
+    <link rel="canonical" href="http://localhost:4000/2017/09/11/cluster-management/">
 
     <!-- Bootstrap Core CSS -->
     <link rel="stylesheet" href="/css/bootstrap.min.css">
@@ -123,234 +123,130 @@
 </script>
 
 
-    <!-- Page Header -->
-<header class="intro-header" style="background-image: url('/img/home-bg.jpg')">
+    <!-- Image to hack wechat -->
+<!-- <img src="/img/icon_wechat.png" width="0" height="0"> -->
+<!-- <img src="/img/home-bg-o.jpg" width="0" height="0"> -->
+
+<!-- Post Header -->
+<style type="text/css">
+    header.intro-header{
+        position: relative;
+        background-image: url('/img/home-bg-o.jpg')
+    }
+
+    
+</style>
+<header class="intro-header" >
+    <div class="header-mask"></div>
     <div class="container">
         <div class="row">
-            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1 ">
-                <div class="site-heading">
-                    <h1>Bryancy Blog</h1>
-                    <!--<hr class="small">-->
-                    <span class="subheading">爱生活，爱曹严</span>
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/#linux" title="linux">linux</a>
+                        
+                    </div>
+                    <h1>集群管理利器-polysh</h1>
+                    
+                    
+                    <h2 class="subheading">使用polysh同时查看多台服务器的日志</h2>
+                    
+                    <span class="meta">Posted by Bryancy on September 11, 2017</span>
                 </div>
             </div>
         </div>
     </div>
 </header>
 
-<!-- Main Content -->
-<div class="container">
-	<div class="row">
-        
+<!-- Post Content -->
+<article>
+    <div class="container">
+        <div class="row">
 
-<!-- USE SIDEBAR -->
     <!-- Post Container -->
-    		<div class="
-                col-lg-8 col-lg-offset-1
-                col-md-8 col-md-offset-1
-                col-sm-12
-                col-xs-12
-                post-container
-            ">
-    			
-<div class="post-preview">
-    <a href="/2017/09/11/ansible/">
-        <h2 class="post-title">
-            ansible - 简单的自动化IT工具
-        </h2>
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+				<h2 id="前言">前言</h2>
+<p>在没有集成日志的情况下，想同时查看多台机器的日志目前知道的最好用的方法是使用polysh。它可以通过本地机器在远程同时执行命令，并显示结果。</p>
+
+<p><a href="http://guichaz.free.fr/polysh/">polysh主页</a></p>
+
+<h2 id="安装">安装</h2>
+<p><code class="highlighter-rouge">sudo pip install polysh</code></p>
+
+<h2 id="用法">用法</h2>
+<ul>
+  <li>
+    <p>在多台机器执行同一命令
+<img src="/img/in-post/post-cluster-20170911/ref.png" alt="" /></p>
+  </li>
+  <li>
+    <p>在本地集中打印日志
+<img src="/img/in-post/post-cluster-20170911/ref2.jpg" alt="" /></p>
+  </li>
+</ul>
+
+
+
+                <hr style="visibility: hidden;">
+
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/2017/09/10/hello-world/" data-toggle="tooltip" data-placement="top" title="Welcome to Bryancy Blog">
+                        Previous<br>
+                        <span>Welcome to Bryancy Blog</span>
+                        </a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/2017/09/11/ansible/" data-toggle="tooltip" data-placement="top" title="ansible - 简单的自动化IT工具">
+                        Next<br>
+                        <span>ansible - 简单的自动化IT工具</span>
+                        </a>
+                    </li>
+                    
+                </ul>
+
+
+                
+
+                
+            </div>  
+
+    <!-- Side Catalog Container -->
         
-        <h3 class="post-subtitle">
-            自动化部署APP；自动化管理配置项；自动化的持续交互；自动化的（AWS）云服务管理
-        </h3>
-        
-        <div class="post-content-preview">
-            安装和配置
 
-安装
-sudo pip install ansible
-
-创建并编辑ansible的hosts文件，内容为已经配置ssh免密码登录的远程主机的地址。
-
-  
-    创建并编辑ansible的hosts文件
-      # /etc/ansible/hosts是默认路径
-  sudo mkdir /etc/ansible
-  sudo vi /etc/ansible/hosts...
-        </div>
-    </a>
-    <p class="post-meta">
-        Posted by Bryancy on September 11, 2017
-    </p>
-</div>
-<hr>
-
-<div class="post-preview">
-    <a href="/2017/09/11/cluster-management/">
-        <h2 class="post-title">
-            集群管理利器-polysh
-        </h2>
-        
-        <h3 class="post-subtitle">
-            使用polysh同时查看多台服务器的日志
-        </h3>
-        
-        <div class="post-content-preview">
-            前言
-在没有集成日志的情况下，想同时查看多台机器的日志目前知道的最好用的方法是使用polysh。它可以通过本地机器在远程同时执行命令，并显示结果。
-
-polysh主页
-
-安装
-sudo pip install polysh
-
-用法
-
-  
-    在多台机器执行同一命令
-
-  
-  
-    在本地集中打印日志
-
-  
-
-
-
-        </div>
-    </a>
-    <p class="post-meta">
-        Posted by Bryancy on September 11, 2017
-    </p>
-</div>
-<hr>
-
-<div class="post-preview">
-    <a href="/2017/09/10/hello-world/">
-        <h2 class="post-title">
-            Welcome to Bryancy Blog
-        </h2>
-        
-        <h3 class="post-subtitle">
-             "Hello World, Hello Blog"
-        </h3>
-        
-        <div class="post-content-preview">
-            
-  “Yeah It’s on. ”
-
-
-前言
-
-Bryancy 的 Blog 就这么开通了。
-
-跳过废话，直接看技术实现 
-
-一直想找个地方好好写点东西，现在终于有了！
-
-作为一个程序员， Blog 这种轮子要是挂在大众博客程序上就太没意思了。一是觉得大部分 Blog 服务都太丑，二是觉得不能随便定制不好玩。之前因为太懒没有折腾，结果就一直连个写 Blog 的地儿都没有。
-
-
-
-
-正文
-...
-        </div>
-    </a>
-    <p class="post-meta">
-        Posted by Bryancy on September 10, 2017
-    </p>
-</div>
-<hr>
-
-
-<!-- Pager -->
-
-
-    		</div>
     <!-- Sidebar Container -->
             <div class="
-                col-lg-3 col-lg-offset-0
-                col-md-3 col-md-offset-0
-                col-sm-12
-                col-xs-12
-                sidebar-container
-            ">
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
                 <!-- Featured Tags -->
                 
                 <section>
                     <hr class="hidden-sm hidden-xs">
                     <h5><a href="/tags/">FEATURED TAGS</a></h5>
                     <div class="tags">
-                        
+        				
                             
-                        
+        				
                             
-                                <a href="/tags/#linux" title="linux" rel="2">
+                				<a href="/tags/#linux" title="linux" rel="2">
                                     linux
                                 </a>
                             
-                        
-                    </div>
+        				
+        			</div>
                 </section>
                 
 
-                <!-- Short About -->
-                <section class="visible-md visible-lg">
-                    <hr><h5><a href="/about/">ABOUT ME</a></h5>
-                    <div class="short-about">
-                        
-                            <img src="/img/avatar-cy.jpeg" />
-                        
-                        
-                            <p>写写代码，做做设计，看看产品。世界那么大，多玩玩看看。</p>
-                        
-                        <!-- SNS Link -->
-                        <ul class="list-inline">
-                            
-                            
-                            
-                            <li>
-                                <a target="_blank" href="https://www.zhihu.com/people/bryancy">
-                                    <span class="fa-stack fa-lg">
-                                        <i class="fa fa-circle fa-stack-2x"></i>
-                                        <i class="fa  fa-stack-1x fa-inverse">知</i>
-                                    </span>
-                                </a>
-                            </li>
-                            
-                            
-                            <li>
-                                <a target="_blank" href="http://weibo.com/bryancy">
-                                    <span class="fa-stack fa-lg">
-                                        <i class="fa fa-circle fa-stack-2x"></i>
-                                        <i class="fa fa-weibo fa-stack-1x fa-inverse"></i>
-                                    </span>
-                                </a>
-                            </li>
-                            
-                            
-                            <li>
-                                <a target="_blank" href="https://www.facebook.com/bryancy">
-                                    <span class="fa-stack fa-lg">
-                                        <i class="fa fa-circle fa-stack-2x"></i>
-                                        <i class="fa fa-facebook fa-stack-1x fa-inverse"></i>
-                                    </span>
-                                </a>
-                            </li>
-                            
-                            
-                            <li>
-                                <a target="_blank" href="https://github.com/bryancy">
-                                    <span class="fa-stack fa-lg">
-                                        <i class="fa fa-circle fa-stack-2x"></i>
-                                        <i class="fa fa-github fa-stack-1x fa-inverse"></i>
-                                    </span>
-                                </a>
-                            </li>
-                            
-                        </ul>
-                    </div>
-                </section>
                 <!-- Friends Blog -->
                 
                 <hr>
@@ -369,10 +265,52 @@ Bryancy 的 Blog 就这么开通了。
                     
                 </ul>
                 
-    		</div>
-        
-	</div>
-</div>
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+
+
+
+
+
+<!-- async load function -->
+<script>
+    function async(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+<!-- anchor-js, Doc:http://bryanbraun.github.io/anchorjs/ -->
+<script>
+    async("//cdnjs.cloudflare.com/ajax/libs/anchor-js/1.1.1/anchor.min.js",function(){
+        anchors.options = {
+          visible: 'always',
+          placement: 'right',
+          icon: '#'
+        };
+        anchors.add().remove('.intro-header h1').remove('.subheading').remove('.sidebar-container h5');
+    })
+</script>
+<style>
+    /* place left on bigger screen */
+    @media all and (min-width: 800px) {
+        .anchorjs-link{
+            position: absolute;
+            left: -0.75em;
+            font-size: 1.1em;
+            margin-top : -0.1em;
+        }
+    }
+</style>
 
 
     <!-- Footer -->
