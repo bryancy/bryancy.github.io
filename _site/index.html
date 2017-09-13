@@ -154,6 +154,38 @@
             ">
     			
 <div class="post-preview">
+    <a href="/2017/09/12/character_encoding/">
+        <h2 class="post-title">
+            python字符编码和字符串
+        </h2>
+        
+        <h3 class="post-subtitle">
+            编码与解码、字符与字节浅析
+        </h3>
+        
+        <div class="post-content-preview">
+            前言
+
+背景：我司代码都是基于python2
+
+今天接到一个需求，三方登录时，对第三方的昵称如果大于20个字符，进行过滤截取，毫不迟疑，写了以下代码：
+if len(nickname) &gt; 20:
+    # 截取
+
+
+
+我转念一想，事情不大对，我这算的是字符数（这个表述是正确的，是字符）啊
+len("abcd")  # 等于4
+len("I love python")  # 等于13...
+        </div>
+    </a>
+    <p class="post-meta">
+        Posted by Bryancy on September 12, 2017
+    </p>
+</div>
+<hr>
+
+<div class="post-preview">
     <a href="/2017/09/11/ansible/">
         <h2 class="post-title">
             ansible - 简单的自动化IT工具
@@ -288,6 +320,8 @@ Bryancy 的 Blog 就这么开通了。
                                 <a href="/tags/#linux" title="linux" rel="2">
                                     linux
                                 </a>
+                            
+                        
                             
                         
                     </div>

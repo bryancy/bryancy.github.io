@@ -5,9 +5,120 @@
     <description></description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 13 Sep 2017 13:28:06 +0800</pubDate>
-    <lastBuildDate>Wed, 13 Sep 2017 13:28:06 +0800</lastBuildDate>
+    <pubDate>Wed, 13 Sep 2017 18:26:56 +0800</pubDate>
+    <lastBuildDate>Wed, 13 Sep 2017 18:26:56 +0800</lastBuildDate>
     <generator>Jekyll v3.5.2</generator>
+    
+      <item>
+        <title>python字符编码和字符串</title>
+        <description>&lt;h2 id=&quot;前言&quot;&gt;前言&lt;/h2&gt;
+
+&lt;p&gt;背景：我司代码都是基于python2&lt;/p&gt;
+
+&lt;p&gt;今天接到一个需求，三方登录时，对第三方的昵称如果大于20个字符，进行过滤截取，毫不迟疑，写了以下代码：&lt;/p&gt;
+&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nickname&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;c&quot;&gt;# 截取&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;我转念一想，事情不大对，我这算的是字符数（这个表述是正确的，是字符）啊&lt;/p&gt;
+&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;abcd&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;  &lt;span class=&quot;c&quot;&gt;# 等于4&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;I love python&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;  &lt;span class=&quot;c&quot;&gt;# 等于13&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;上面的例子显而易见，小学生水平，再看下面的&lt;/p&gt;
+&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;我爱北京天安门&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;  &lt;span class=&quot;c&quot;&gt;# 等于21&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;u&quot;我爱北京天安门&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;  &lt;span class=&quot;c&quot;&gt;# 等于7&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;其实我想要的是下面这个，但是我在代码里直接那么写，我操作的字符串前面到底有没有u呢，这个u我知道是unicode字符串，它和没有u的字符串到底区别在哪里？&lt;/p&gt;
+
+&lt;p&gt;几年前我曾经下决心弄懂这个问题，可能当时也确实明白了，但是现在差不多已经全忘了。我自己总结了一下，一是之前一直是用python3，python3做了一些修改。二是这个问题确实不应该交给程序员来解决（我承认我的记性确实不好）。&lt;/p&gt;
+
+&lt;p&gt;然而，旧的系统那么多，难保你下次跳槽的公司没有一些上了年纪的代码，我们还是来梳理一下吧。&lt;/p&gt;
+
+&lt;h2 id=&quot;字符与字节&quot;&gt;字符与字节&lt;/h2&gt;
+
+&lt;p&gt;一个字符不等价于一个字节，字符是人类能够识别的符号，而这些符号要保存到计算机的存储中就需要用计算机能够识别的字节来表示。一个字符往往有多种表示方法，不同的表示方法会使用不同的字节数。这里所说的不同的表示方法就是指字符编码，比如字母A-Z都可以用&lt;code class=&quot;highlighter-rouge&quot;&gt;ASCII&lt;/code&gt;码表示（占用一个字节），也可以用&lt;code class=&quot;highlighter-rouge&quot;&gt;UNICODE&lt;/code&gt;表示（占两个字节），还可以用&lt;code class=&quot;highlighter-rouge&quot;&gt;UTF-8&lt;/code&gt;表示（占用一个字节）。字符编码的作用就是将人类可识别的字符转换为机器可识别的字节码，以及反向过程。&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;UNICDOE&lt;/code&gt;才是真正的字符串，而用ASCII、UTF-8、GBK等字符编码表示的是字节串。关于这点，我们可以在Python的官方文档中经常可以看到这样的描述&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;“Unicode string” , “translating a Unicode string into a sequence of bytes”。
+&lt;br /&gt;（注意：英文中string是我们说的字符串，bytes是字节串）&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;我们写&lt;code class=&quot;highlighter-rouge&quot;&gt;代码&lt;/code&gt;是写在&lt;code class=&quot;highlighter-rouge&quot;&gt;文件&lt;/code&gt;中的，而&lt;code class=&quot;highlighter-rouge&quot;&gt;字符&lt;/code&gt;是以&lt;code class=&quot;highlighter-rouge&quot;&gt;字节&lt;/code&gt;形式保存在&lt;code class=&quot;highlighter-rouge&quot;&gt;文件&lt;/code&gt;中的，因此当我们在&lt;code class=&quot;highlighter-rouge&quot;&gt;文件&lt;/code&gt;中定义个&lt;code class=&quot;highlighter-rouge&quot;&gt;字符串&lt;/code&gt;时被当做&lt;code class=&quot;highlighter-rouge&quot;&gt;字节串&lt;/code&gt;也是可以理解的。但是，我们需要的是&lt;code class=&quot;highlighter-rouge&quot;&gt;字符串&lt;/code&gt;，而不是&lt;code class=&quot;highlighter-rouge&quot;&gt;字节串&lt;/code&gt;（我们写代码处理的是我们能想象的数据，也就是字符串，应该不会有人想象字节串吧）。一个优秀的编程语言，应该严格区分两者的关系并提供巧妙的完美的支持。JAVA语言就很好，我认识的JAVA程序员从来没有考虑过这些不应该由程序员来处理的问题（我一直这么认为）。遗憾的是，很多编程语言试图混淆&lt;code class=&quot;highlighter-rouge&quot;&gt;“字符串”&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;“字节串”&lt;/code&gt;，他们把字节串当做字符串来使用，PHP和Python2都属于这种编程语言。最能说明这个问题的操作就是取一个包含中文字符的字符串的长度：&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;对&lt;code class=&quot;highlighter-rouge&quot;&gt;字符串&lt;/code&gt;取长度，结果应该是所有&lt;code class=&quot;highlighter-rouge&quot;&gt;字符&lt;/code&gt;的个数，无论中文还是英文&lt;/li&gt;
+  &lt;li&gt;对&lt;code class=&quot;highlighter-rouge&quot;&gt;字符串&lt;/code&gt;对应的&lt;code class=&quot;highlighter-rouge&quot;&gt;字节串&lt;/code&gt;取长度，就跟编码(encode)过程使用的字符编码有关了(比如：UTF-8编码，一个中文字符需要用3个字节来表示；GBK编码，一个中文字符需要2个&lt;code class=&quot;highlighter-rouge&quot;&gt;字节&lt;/code&gt;来表示)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-ipython&quot;&gt;In [8]: a = u&quot;中国&quot;
+In [9]: print len(a), type(a)
+2 &amp;lt;type 'unicode'&amp;gt;
+
+In [10]: b = a.encode('utf-8')
+In [11]: print len(b), type(b)
+6 &amp;lt;type 'str'&amp;gt;
+
+In [12]: c = a.encode('gbk')
+In [13]: print len(c), type(c)
+4 &amp;lt;type 'str'&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;编码与解码&quot;&gt;编码与解码&lt;/h2&gt;
+
+&lt;p&gt;UNICODE字符编码，也是一张字符与数字的映射，但是这里的数字被称为代码点(code point), 实际上就是十六进制的数字。&lt;/p&gt;
+
+&lt;p&gt;Python官方文档中对Unicode字符串、字节串与编码之间的关系有这样一段描述：&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;a Unicode string is a sequence of code points, which are numbers from 0 to 0x10ffff.&lt;br /&gt;
+This sequence needs to be represented as a set of bytes (meaning, values from 0–255) in memory.&lt;br /&gt;
+The rules for translating a Unicode string into a sequence of bytes are called an encoding.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Unicode字符串是一个代码点（code point）序列，代码点取值范围为0到0x10FFFF（对应的十进制为1114111。&lt;br /&gt;
+这个代码点序列在存储（包括内存和物理磁盘）中需要被表示为一组字节(0到255之间的值)，&lt;br /&gt;
+而将Unicode字符串转换为字节序列的规则称为编码。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;这里说的编码不是指字符编码，而是指:&lt;strong&gt;编码的过程以及这个过程中所使用到的Unicode字符的代码点与字节的映射规则&lt;/strong&gt;。
+这个映射不必是简单的一对一映射，因此编码过程也不必处理每个可能的Unicode字符，例如：&lt;/p&gt;
+
+&lt;p&gt;将&lt;code class=&quot;highlighter-rouge&quot;&gt;Unicode&lt;/code&gt;字符串转换为&lt;code class=&quot;highlighter-rouge&quot;&gt;ASCII&lt;/code&gt;编码的规则很简单–对于每个代码点：&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;如果代码点数值&amp;lt;128，则每个字节与代码点的值相同&lt;/li&gt;
+  &lt;li&gt;如果代码点数值&amp;gt;=128，则&lt;code class=&quot;highlighter-rouge&quot;&gt;Unicode&lt;/code&gt;字符无法在此编码中进行表示（这种情况下，Python会引发一个&lt;code class=&quot;highlighter-rouge&quot;&gt;UnicodeEncodeError&lt;/code&gt;异常）&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;将&lt;code class=&quot;highlighter-rouge&quot;&gt;Unicode&lt;/code&gt;字符串转换为&lt;code class=&quot;highlighter-rouge&quot;&gt;UTF-8&lt;/code&gt;编码使用以下规则：&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;如果代码点数值&amp;lt;128，则由相应的字节值表示（与Unicode转ASCII字节一样）&lt;/li&gt;
+  &lt;li&gt;如果代码点数值&amp;gt;=128，则将其转换为一个2个字节，3个字节或4个字节的序列，该序列中的每个字节都在128到255之间。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;简单总结：&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;编码(encode)：将&lt;code class=&quot;highlighter-rouge&quot;&gt;Unicode&lt;/code&gt;字符串（中的代码点)转换特定字符编码对应的字节串的过程和规则&lt;/li&gt;
+  &lt;li&gt;解码(decode)：将特定字符编码的字节串转换为对应的&lt;code class=&quot;highlighter-rouge&quot;&gt;Unicode&lt;/code&gt;字符串(中的代码点)的过程和规则&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;可见，无论是编码还是解码，都需要一个重要因素，就是特定的字符编码。因为一个字符用不同的字符编码进行编码后的字节值以及字节个数大部分情况下是不同的，反之亦然。&lt;/p&gt;
+
+&lt;p&gt;而且很容易看到，编码和解码都是基于Unicode字符串，没有第二种字符串掺和，其他都是编码方式，一定要深刻地认识到这一点&lt;/p&gt;
+</description>
+        <pubDate>Wed, 13 Sep 2017 01:21:00 +0800</pubDate>
+        <link>http://localhost:4000/2017/09/12/character_encoding/</link>
+        <guid isPermaLink="true">http://localhost:4000/2017/09/12/character_encoding/</guid>
+        
+        <category>python</category>
+        
+        
+      </item>
     
       <item>
         <title>ansible - 简单的自动化IT工具</title>
