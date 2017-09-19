@@ -13,12 +13,12 @@ tags:
 ### 目录
 
 0. [安装](#install)
-0. [Command](#commandcommand)
-0. [Group](#groupgroup)
-0. [Parameters](#parametersparameters)
+0. [Command](#command)
+0. [Group](#group)
+0. [Parameters](#parameters)
 0. [安装工具](#setup)
-0. [Options](#optionsoption)
-0. [Arguments](#argumentsarguments)
+0. [Options](#options)
+0. [Arguments](#arguments)
 
 ---
 
