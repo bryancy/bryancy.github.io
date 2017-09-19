@@ -5,8 +5,8 @@
     <description></description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 19 Sep 2017 20:08:52 +0800</pubDate>
-    <lastBuildDate>Tue, 19 Sep 2017 20:08:52 +0800</lastBuildDate>
+    <pubDate>Tue, 19 Sep 2017 20:26:04 +0800</pubDate>
+    <lastBuildDate>Tue, 19 Sep 2017 20:26:04 +0800</lastBuildDate>
     <generator>Jekyll v3.5.2</generator>
     
       <item>
@@ -1749,130 +1749,6 @@ ansible v1 -m service -a &lt;span class=&quot;s2&quot;&gt;&quot;name=mysql state
         <guid isPermaLink="true">http://localhost:4000/2017/09/10/hello-world/</guid>
         
         <category>生活</category>
-        
-        
-      </item>
-    
-      <item>
-        <title>IO多路复用</title>
-        <description>&lt;h2 id=&quot;selectpollepoll模型&quot;&gt;select、poll、Epoll模型&lt;/h2&gt;
-&lt;h4 id=&quot;select模型&quot;&gt;select模型&lt;/h4&gt;
-&lt;ol&gt;
-  &lt;li&gt;最大并发数限制，因为一个进程所打开的FD（文件描述符）是有限制的，由&lt;code class=&quot;highlighter-rouge&quot;&gt;FD_SETSIZE&lt;/code&gt;设置，默认值是1024/2048，因此Select模型的最大并发数就被相应限制了。自己改改这个&lt;code class=&quot;highlighter-rouge&quot;&gt;FD_SETSIZE&lt;/code&gt;？想法虽好，可是先看看下面吧…&lt;/li&gt;
-  &lt;li&gt;效率问题，select每次调用都会线性扫描全部的FD集合，这样效率就会呈现线性下降，把&lt;code class=&quot;highlighter-rouge&quot;&gt;FD_SETSIZE&lt;/code&gt;改大的后果就是，大家都慢慢来，什么？都超时了？？！！&lt;/li&gt;
-  &lt;li&gt;内核/用户空间 内存拷贝问题，如何让内核把FD消息通知给用户空间呢？在这个问题上select采取了内存拷贝方法。&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h4 id=&quot;poll模型&quot;&gt;poll模型&lt;/h4&gt;
-&lt;p&gt;基本上效率和select是相同的，select缺点的2和3它都没有改掉。&lt;/p&gt;
-
-&lt;h4 id=&quot;epoll模型&quot;&gt;Epoll模型&lt;/h4&gt;
-&lt;p&gt;把其他模型逐个批判了一下，再来看看Epoll的改进之处吧，其实把select的缺点反过来那就是Epoll的优点了。&lt;/p&gt;
-&lt;ol&gt;
-  &lt;li&gt;Epoll没有最大并发连接的限制，上限是最大可以打开文件的数目，这个数字一般远大于2048, 一般来说这个数目和系统内存关系很大，具体数目可以&lt;code class=&quot;highlighter-rouge&quot;&gt;cat /proc/sys/fs/file-max&lt;/code&gt;查看。&lt;/li&gt;
-  &lt;li&gt;效率提升，Epoll最大的优点就在于它只管你“活跃”的连接，而跟连接总数无关，因此在实际的网络环境中，Epoll的效率就会远远高于select和poll。&lt;/li&gt;
-  &lt;li&gt;内存拷贝，Epoll在这点上使用了“共享内存”，这个内存拷贝也省略了。&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h4 id=&quot;总结&quot;&gt;总结&lt;/h4&gt;
-&lt;p&gt;select 是采用内核轮询方式，每次调用都需要轮询 &lt;code class=&quot;highlighter-rouge&quot;&gt;FD_SET&lt;/code&gt;，默认最多可以接受 1024 个fd，可更改为更大，但是随着数量的增多，轮询周期的变长，性能会急剧下降；&lt;/p&gt;
-
-&lt;p&gt;poll 是 select 的改进版，将 &lt;code class=&quot;highlighter-rouge&quot;&gt;FD_SET&lt;/code&gt; 改造成由（ &lt;code class=&quot;highlighter-rouge&quot;&gt;fd&lt;/code&gt;，监听事件类型，实际事件类型 ）为节点组成的链，解除了1024 的限制，其他并无大的区别，当 &lt;code class=&quot;highlighter-rouge&quot;&gt;fd&lt;/code&gt; 多时，同样会造成效率下降；&lt;/p&gt;
-
-&lt;p&gt;epoll 将 轮询机制 改造为 事件触发机制，给每一个 &lt;code class=&quot;highlighter-rouge&quot;&gt;fd&lt;/code&gt; 附上一个 &lt;code class=&quot;highlighter-rouge&quot;&gt;callback&lt;/code&gt;，当监听事件发生时，就将 &lt;code class=&quot;highlighter-rouge&quot;&gt;fd&lt;/code&gt; 链接到 就绪链表，调用 &lt;code class=&quot;highlighter-rouge&quot;&gt;epoll_wait&lt;/code&gt; 时，只用检查就绪链表就可以了，而不需要像 select 和 poll 一样进行轮询。&lt;/p&gt;
-
-&lt;p&gt;另外，select 和 poll 是将存有 &lt;code class=&quot;highlighter-rouge&quot;&gt;fd&lt;/code&gt; 的结构或者数组再每次调用的时候都复制到内核态，然后调用完再复制回用户态，而无所谓是否有意义。epoll 使用内存映射，减去了这部分的&lt;code class=&quot;highlighter-rouge&quot;&gt;data-copy&lt;/code&gt;操作。&lt;/p&gt;
-
-&lt;p&gt;再者，从触发方式上来看，select 和 poll 都只有 条件触发（也可以叫水平触发），epoll 则有条件触发 和 事件触发（也可以叫边缘触发）两种。&lt;/p&gt;
-
-&lt;p&gt;在选择使用哪种方式的时候，需要根据 &lt;code class=&quot;highlighter-rouge&quot;&gt;fd&lt;/code&gt; 的多少和活跃程度来判断。当&lt;code class=&quot;highlighter-rouge&quot;&gt;fd&lt;/code&gt; 数量较少，且都比较活跃的时候，使用 select 或者 poll 反而有可能效率更高，因为毕竟 epoll 要有多次的回调函数。&lt;/p&gt;
-
-&lt;p&gt;好东西都是要付出代价的！&lt;/p&gt;
-
-&lt;h2 id=&quot;epoll为什么高效&quot;&gt;epoll为什么高效&lt;/h2&gt;
-&lt;h4 id=&quot;无需遍历整个集合&quot;&gt;无需遍历整个集合&lt;/h4&gt;
-&lt;p&gt;首先回忆一下select 模型，当有I/O 事件到来时，select 通知应用程序有事件到了快去处理，而应用程序必须轮询所有的fd集合，测试每个fd是否有事件发生，并处理事件；代码像下面这样:&lt;/p&gt;
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;res&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;select&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;maxfd&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;readfds&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;120&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;res&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MAX_CONNECTION&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-       &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FD_ISSET&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;allConnection&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;readfds&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
-       &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-           &lt;span class=&quot;n&quot;&gt;handleEvent&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;allConnection&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
-       &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;// if(res == 0) handle timeout, res &amp;lt; 0 handle error
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Epoll 不仅会告诉应用程序有I/0事件到来，还会告诉应用程序相关的信息，这些信息是应用程序填充的，因此根据这些信息应用程序就能直接定位到事件，而不必遍历整个fd集合&lt;/p&gt;
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;res&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;epoll_wait&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;epfd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;events&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;120&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;res&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;handleEvent&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;events&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;n&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;epoll-关键数据结构&quot;&gt;Epoll 关键数据结构&lt;/h4&gt;
-&lt;p&gt;Epoll 速度快和其数据结构密不可分，其关键数据结构就是：&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;struct epoll_event {
-    __uint32_t events;      // Epoll events
-    epoll_data_t data;      // User data variable
-};
-typedef union epoll_data {
-    void *ptr;
-    int fd;
-    __uint32_t u32;
-    __uint64_t u64;
-} epoll_data_t;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;可见epoll_data 是一个 union 结构体 , 借助于它应用程序可以保存很多类型的信息 :fd 、指针等等。有了它，应用程序就可以直接定位目标了。
-别小看了这些效率的提高,在一个大规模并发的服务器中,轮询IO是最耗时间的操作之一。&lt;/p&gt;
-
-&lt;p&gt;对比最早给出的阻塞IO的处理模型, 可以看到采用了多路复用IO之后, 程序可以自由的进行自己除了IO操作之外的工作, 只有到IO状态发生变化的时候由多路复用IO进行通知, 然后再采取相应的操作, 而不用一直阻塞等待IO状态发生变化了.&lt;/p&gt;
-
-&lt;h2 id=&quot;epoll的事件触发方式&quot;&gt;epoll的事件触发方式&lt;/h2&gt;
-&lt;h4 id=&quot;前言&quot;&gt;前言&lt;/h4&gt;
-&lt;p&gt;假如有这样一个例子：&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;我们已经把一个用来从管道中读取数据的文件句柄(RFD)添加到epoll描述符&lt;/li&gt;
-  &lt;li&gt;这个时候从管道的另一端被写入了2KB的数据&lt;/li&gt;
-  &lt;li&gt;调用&lt;code class=&quot;highlighter-rouge&quot;&gt;epoll_wait()&lt;/code&gt;，并且它会返回RFD，说明它已经准备好读取操作&lt;/li&gt;
-  &lt;li&gt;然后我们读取了1KB的数据&lt;/li&gt;
-  &lt;li&gt;调用&lt;code class=&quot;highlighter-rouge&quot;&gt;epoll_wait()&lt;/code&gt;……&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h4 id=&quot;edge-triggered-工作模式&quot;&gt;Edge Triggered 工作模式：&lt;/h4&gt;
-&lt;p&gt;如果我们在第1步将RFD添加到epoll描述符的时候使用了EPOLLET标志，那么在第5步调用&lt;code class=&quot;highlighter-rouge&quot;&gt;epoll_wait()&lt;/code&gt;之后将有可能会挂起，因为剩余的数据还存在于文件的输入缓冲区内，而且数据发出端还在等待一个针对已经发出数据的反馈信息。只有在监视的文件句柄上发生了某个事件的时候 ET 工作模式才会汇报事件。因此在第5步的时候，调用者可能会放弃等待仍在存在于文件输入缓冲区内的剩余数据。在上面的例子中，会有一个事件产生在RFD句柄上，因为在第2步执行了一个写操作，然后，事件将会在第3步被销毁。&lt;/p&gt;
-
-&lt;p&gt;因为第4步的读取操作没有读空文件输入缓冲区内的数据，因此我们在第5步调用 &lt;code class=&quot;highlighter-rouge&quot;&gt;epoll_wait()&lt;/code&gt;完成后，是否挂起是不确定的。epoll工作在ET模式的时候，必须使用&lt;b&gt;非阻塞套接口&lt;/b&gt;，以避免由于一个文件句柄的阻塞读/阻塞写操作把处理多个文件描述符的任务饿死。最好以下面的方式调用ET模式的epoll接口，在后面会介绍避免可能的缺陷。&lt;/p&gt;
-&lt;ol&gt;
-  &lt;li&gt;基于非阻塞文件句柄&lt;/li&gt;
-  &lt;li&gt;只有当&lt;code class=&quot;highlighter-rouge&quot;&gt;read()&lt;/code&gt;或者&lt;code class=&quot;highlighter-rouge&quot;&gt;write()&lt;/code&gt;返回EAGAIN时才需要挂起，等待。但这并不是说每次&lt;code class=&quot;highlighter-rouge&quot;&gt;read()&lt;/code&gt;时都需要循环读，直到读到产生一个EAGAIN才认为此次事件处理完成，当&lt;code class=&quot;highlighter-rouge&quot;&gt;read()&lt;/code&gt;返回的读到的数据长度小于请求的数据长度时，就可以确定此时缓冲中已没有数据了，也就可以认为此事读事件已处理完成&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h4 id=&quot;level-triggered-工作模式&quot;&gt;Level Triggered 工作模式&lt;/h4&gt;
-&lt;p&gt;相反的，以LT方式调用epoll接口的时候，它就相当于一个速度比较快的&lt;code class=&quot;highlighter-rouge&quot;&gt;poll()&lt;/code&gt;，并且无论后面的数据是否被使用，因此他们具有同样的职能。因为即使使用ET模式的epoll，在收到多个chunk的数据的时候仍然会产生多个事件。调用者可以设定EPOLLONESHOT标志，在 &lt;code class=&quot;highlighter-rouge&quot;&gt;epoll_wait()&lt;/code&gt;收到事件后epoll会与事件关联的文件句柄从epoll描述符中禁止掉。因此当EPOLLONESHOT设定后，使用带有 &lt;code class=&quot;highlighter-rouge&quot;&gt;EPOLL_CTL_MOD&lt;/code&gt;标志的&lt;code class=&quot;highlighter-rouge&quot;&gt;epoll_ctl()&lt;/code&gt;处理文件句柄就成为调用者必须作的事情。&lt;/p&gt;
-
-&lt;h4 id=&quot;总结-1&quot;&gt;总结&lt;/h4&gt;
-&lt;p&gt;&lt;strong&gt;LT&lt;/strong&gt;(level triggered水平触发或条件触发)是epoll缺省的工作方式，并且同时支持&lt;code class=&quot;highlighter-rouge&quot;&gt;block&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;no-block socket&lt;/code&gt;.在这种做法中，内核告诉你一个文件描述符是否就绪了，然后你可以对这个就绪的fd进行IO操作。如果你不作任何操作，内核还是会继续通知你的，所以，这种模式编程出错误可能性要小一点。传统的&lt;code class=&quot;highlighter-rouge&quot;&gt;select/poll&lt;/code&gt;都是这种模型的代表．&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;ET&lt;/strong&gt; (edge-triggered边缘触发或事件触发)是高速工作方式，只支持&lt;code class=&quot;highlighter-rouge&quot;&gt;no-block socket&lt;/code&gt;，它效率要比LT更高。ET与LT的区别在于，当一个新的事件到来时，ET模式下当然可以从&lt;code class=&quot;highlighter-rouge&quot;&gt;epoll_wait&lt;/code&gt;调用中获取到这个事件，&lt;b&gt;可是如果这次没有把这个事件对应的套接字缓冲区处理完，在这个套接字中没有新的事件再次到来时，在ET模式下是无法再次从&lt;code class=&quot;highlighter-rouge&quot;&gt;epoll_wait&lt;/code&gt;调用中获取这个事件的。而LT模式正好相反，只要一个事件对应的套接字缓冲区还有数据，就总能从&lt;code class=&quot;highlighter-rouge&quot;&gt;epoll_wait&lt;/code&gt;中获取这个事件&lt;/b&gt;。
-因此，LT模式下开发基于epoll的应用要简单些，不太容易出错。而在ET模式下事件发生时，如果没有彻底地将缓冲区数据处理完，则会导致缓冲区中的用户请求得不到响应。&lt;/p&gt;
-</description>
-        <pubDate>Tue, 20 Sep 2016 01:20:00 +0800</pubDate>
-        <link>http://localhost:4000/2016/09/19/io-reuse/</link>
-        <guid isPermaLink="true">http://localhost:4000/2016/09/19/io-reuse/</guid>
-        
-        <category>linux</category>
-        
-        <category>网络编程</category>
         
         
       </item>
