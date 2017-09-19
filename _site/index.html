@@ -154,6 +154,51 @@
             ">
     			
 <div class="post-preview">
+    <a href="/2017/09/19/click-command/">
+        <h2 class="post-title">
+            Python Click Command 快速入门
+        </h2>
+        
+        <h3 class="post-subtitle">
+            快速理解Python Click模块
+        </h3>
+        
+        <div class="post-content-preview">
+            目录
+
+
+  Install
+  Command
+  Group
+  Parameters
+  Setup
+  Options
+  Arguments
+
+
+
+
+
+  在写命令行工具的时候都会用到参数解析模块，Click就是一个参数解析模块，今天学习一下
+Click的文档在此：CLICK文档
+
+
+
+
+Install
+
+Click的安装很简单，直接 pip install click 即可
+
+官...
+        </div>
+    </a>
+    <p class="post-meta">
+        Posted by bryancy on September 19, 2017
+    </p>
+</div>
+<hr>
+
+<div class="post-preview">
     <a href="/2017/09/12/character_encoding/">
         <h2 class="post-title">
             python字符编码和字符串
@@ -294,6 +339,30 @@ Bryancy 的 Blog 就这么开通了。
 </div>
 <hr>
 
+<div class="post-preview">
+    <a href="/2016/09/19/io-reuse/">
+        <h2 class="post-title">
+            IO多路复用
+        </h2>
+        
+        <h3 class="post-subtitle">
+            select、poll、epoll模型比较
+        </h3>
+        
+        <div class="post-content-preview">
+            select、poll、Epoll模型
+select模型
+
+  最大并发数限制，因为一个进程所打开的FD（文件描述符）是有限制的，由FD_SETSIZE设置，默认值是1024/2048，因此Select模型的最大并发数就被相应限制了。自己改改这个FD_SETSIZE？想法虽好，可是先看看下面吧…
+  效率问题，select每次调用都会线性扫描全部的FD集合，这样效率就会呈现线性下降，把FD_...
+        </div>
+    </a>
+    <p class="post-meta">
+        Posted by bryancy on September 19, 2016
+    </p>
+</div>
+<hr>
+
 
 <!-- Pager -->
 
@@ -315,11 +384,17 @@ Bryancy 的 Blog 就这么开通了。
                     <div class="tags">
                         
                             
-                        
-                            
-                                <a href="/tags/#linux" title="linux" rel="2">
+                                <a href="/tags/#linux" title="linux" rel="3">
                                     linux
                                 </a>
+                            
+                        
+                            
+                        
+                            
+                        
+                            
+                        
                             
                         
                             
