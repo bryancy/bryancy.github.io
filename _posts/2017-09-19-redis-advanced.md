@@ -25,6 +25,7 @@ tags:
 ---
 
 
+<p id = "summary"></p>
 ### [简介](#summary)
 
 Redis是一个开源的`key-value`数据库。它又经常被认为是一个数据结构服务器。因为它的`value`不仅包括基本的`string`类型还有`list`,`set` ,`sorted set`和`hash`类型。当然这些类型的元素也都是`string`类型。也就是说`list`,`set`这些集合类型也只能包含`string`类型。
@@ -38,6 +39,7 @@ Redis是一个开源的`key-value`数据库。它又经常被认为是一个数�
 
 ---
 
+<p id = "sort"></p>
 ### [排序](#sort)
 
 `redis`支持对`list`，`set`和`sorted set`元素的排序。排序命令是`sort` 完整的命令格式如下
@@ -258,6 +260,7 @@ GET 可以多次使用，上面就是一个例子，获取新的对应值的时�
 
 ---
 
+<p id = "transaction"></p>
 ### [事物](#transaction)
 
 `redis`对事务的支持目前还比较简单。`redis`只能保证一个`client`发起的事务中的命令可以连续的执行，而中间不会插入其他`client`的命令。由于`redis`是单线程来处理所有`client`的请求的所以做到这点是很容易的。
@@ -351,6 +354,7 @@ GET 可以多次使用，上面就是一个例子，获取新的对应值的时�
 
 ---
 
+<p id = "pipeline"></p>
 ### [管道](#pipeline)
 
 `redis`是一个`cs`模式的`tcp server`，使用和`http`类似的请求响应协议。
@@ -420,6 +424,7 @@ GET 可以多次使用，上面就是一个例子，获取新的对应值的时�
 
 ---
 
+<p id = "subpub"></p>
 ### [发布/订阅](#subpub)
 
 发布订阅(`pub/sub`)是一种消息通信模式，主要的目的是解耦消息发布者和消息订阅者之间的耦合，这点和设计模式中的观察者模式比较相似。
@@ -477,6 +482,7 @@ Pub/Sub是可适用于可扩展要求高、松散耦合系统的分布式交互�
 
 ---
 
+<p id = "persistence"></p>
 ### [持久化](#persistence)
 
 `Redis`是一个支持持久化的内存数据库，也就是说`redis`需要经常将内存中的数据同步到磁盘来保证持久化。`redis`支持两种持久化方式，一种是`Snapshotting`（快照）也是默认方式，另一种是`Append-only file`（缩写aof）的方式。下面分别介绍
@@ -524,6 +530,7 @@ Pub/Sub是可适用于可扩展要求高、松散耦合系统的分布式交互�
 
 ---
 
+<p id = "master-slave"></p>
 ### [主从复制](#master-slave)
 
 `Redis`主从复制配置和使用都非常简单。通过主从复制可以允许多个`slave server`拥有和`master server`相同的数据库副本。
@@ -554,6 +561,7 @@ Pub/Sub是可适用于可扩展要求高、松散耦合系统的分布式交互�
 
 ---
 
+<p id = "swapmemory"></p>
 ### [虚拟内存](#swapmemory)
 
 首先说明下`redis`的虚拟内存与`os`的虚拟内存不是一码事，但是思路和目的都是相同的。就是暂时把不经常访问的数据从内存交换到磁盘中，从而腾出宝贵的内存空间用于其他需要访问的数据。尤其是对于`redis`这样的内存数据库，内存总是不够用的。除了可以将数据分割到多个`redis server`外。另外的能够提高数据库容量的办法就是使用`vm`把那些不经常访问的数据交换的磁盘上。
@@ -625,6 +633,7 @@ vm-max-threads`表示用做交换任务的线程数量。如果大于0推荐设�
 
 ---
 
+<p id = "documents"></p>
 ### [文档](#documents)
 
 * <http://redisdoc.com/index.html>

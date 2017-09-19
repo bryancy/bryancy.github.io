@@ -12,13 +12,13 @@ tags:
 
 ### 目录
 
-0. [安装](#install)
-0. [Command](#command)
-0. [Group](#group)
-0. [Parameters](#parameters)
-0. [安装工具](#setup)
-0. [Options](#options)
-0. [Arguments](#arguments)
+1. [Install](#install)
+2. [Command](#command)
+3. [Group](#group)
+4. [Parameters](#parameters)
+5. [Setup](#setup)
+6. [Options](#options)
+7. [Arguments](#arguments)
 
 ---
 
@@ -27,7 +27,7 @@ tags:
 
 ---
 
-### [安装](#install)
+### [Install](#install)
 
 
 Click的安装很简单，直接 `pip install click` 即可
@@ -248,7 +248,7 @@ Click 的参数名称有几种形式，不过用的最多的应该就是 `('-n',
 
 ---
 
-### [安装工具](#setup)
+### [Setup](#setup)
 
 
 如果你的模块里面用到了Click，并且向打一个pypi包的话，你需要按照下面的方式来填写 setup.py
