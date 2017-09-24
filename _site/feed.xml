@@ -5,9 +5,840 @@
     <description></description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 19 Sep 2017 20:28:36 +0800</pubDate>
-    <lastBuildDate>Tue, 19 Sep 2017 20:28:36 +0800</lastBuildDate>
+    <pubDate>Sun, 24 Sep 2017 20:11:09 +0800</pubDate>
+    <lastBuildDate>Sun, 24 Sep 2017 20:11:09 +0800</lastBuildDate>
     <generator>Jekyll v3.5.2</generator>
+    
+      <item>
+        <title>IO多路复用</title>
+        <description>&lt;h2 id=&quot;selectpollepoll模型&quot;&gt;select、poll、Epoll模型&lt;/h2&gt;
+&lt;h4 id=&quot;select模型&quot;&gt;select模型&lt;/h4&gt;
+&lt;ol&gt;
+  &lt;li&gt;最大并发数限制，因为一个进程所打开的FD（文件描述符）是有限制的，由&lt;code class=&quot;highlighter-rouge&quot;&gt;FD_SETSIZE&lt;/code&gt;设置，默认值是1024/2048，因此Select模型的最大并发数就被相应限制了。自己改改这个&lt;code class=&quot;highlighter-rouge&quot;&gt;FD_SETSIZE&lt;/code&gt;？想法虽好，可是先看看下面吧…&lt;/li&gt;
+  &lt;li&gt;效率问题，select每次调用都会线性扫描全部的FD集合，这样效率就会呈现线性下降，把&lt;code class=&quot;highlighter-rouge&quot;&gt;FD_SETSIZE&lt;/code&gt;改大的后果就是，大家都慢慢来，什么？都超时了？？！！&lt;/li&gt;
+  &lt;li&gt;内核/用户空间 内存拷贝问题，如何让内核把FD消息通知给用户空间呢？在这个问题上select采取了内存拷贝方法。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;poll模型&quot;&gt;poll模型&lt;/h4&gt;
+&lt;p&gt;基本上效率和select是相同的，select缺点的2和3它都没有改掉。&lt;/p&gt;
+
+&lt;h4 id=&quot;epoll模型&quot;&gt;Epoll模型&lt;/h4&gt;
+&lt;p&gt;把其他模型逐个批判了一下，再来看看Epoll的改进之处吧，其实把select的缺点反过来那就是Epoll的优点了。&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;Epoll没有最大并发连接的限制，上限是最大可以打开文件的数目，这个数字一般远大于2048, 一般来说这个数目和系统内存关系很大，具体数目可以&lt;code class=&quot;highlighter-rouge&quot;&gt;cat /proc/sys/fs/file-max&lt;/code&gt;查看。&lt;/li&gt;
+  &lt;li&gt;效率提升，Epoll最大的优点就在于它只管你“活跃”的连接，而跟连接总数无关，因此在实际的网络环境中，Epoll的效率就会远远高于select和poll。&lt;/li&gt;
+  &lt;li&gt;内存拷贝，Epoll在这点上使用了“共享内存”，这个内存拷贝也省略了。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;总结&quot;&gt;总结&lt;/h4&gt;
+&lt;p&gt;select 是采用内核轮询方式，每次调用都需要轮询 &lt;code class=&quot;highlighter-rouge&quot;&gt;FD_SET&lt;/code&gt;，默认最多可以接受 1024 个fd，可更改为更大，但是随着数量的增多，轮询周期的变长，性能会急剧下降；&lt;/p&gt;
+
+&lt;p&gt;poll 是 select 的改进版，将 &lt;code class=&quot;highlighter-rouge&quot;&gt;FD_SET&lt;/code&gt; 改造成由（ &lt;code class=&quot;highlighter-rouge&quot;&gt;fd&lt;/code&gt;，监听事件类型，实际事件类型 ）为节点组成的链，解除了1024 的限制，其他并无大的区别，当 &lt;code class=&quot;highlighter-rouge&quot;&gt;fd&lt;/code&gt; 多时，同样会造成效率下降；&lt;/p&gt;
+
+&lt;p&gt;epoll 将 轮询机制 改造为 事件触发机制，给每一个 &lt;code class=&quot;highlighter-rouge&quot;&gt;fd&lt;/code&gt; 附上一个 &lt;code class=&quot;highlighter-rouge&quot;&gt;callback&lt;/code&gt;，当监听事件发生时，就将 &lt;code class=&quot;highlighter-rouge&quot;&gt;fd&lt;/code&gt; 链接到 就绪链表，调用 &lt;code class=&quot;highlighter-rouge&quot;&gt;epoll_wait&lt;/code&gt; 时，只用检查就绪链表就可以了，而不需要像 select 和 poll 一样进行轮询。&lt;/p&gt;
+
+&lt;p&gt;另外，select 和 poll 是将存有 &lt;code class=&quot;highlighter-rouge&quot;&gt;fd&lt;/code&gt; 的结构或者数组再每次调用的时候都复制到内核态，然后调用完再复制回用户态，而无所谓是否有意义。epoll 使用内存映射，减去了这部分的&lt;code class=&quot;highlighter-rouge&quot;&gt;data-copy&lt;/code&gt;操作。&lt;/p&gt;
+
+&lt;p&gt;再者，从触发方式上来看，select 和 poll 都只有 条件触发（也可以叫水平触发），epoll 则有条件触发 和 事件触发（也可以叫边缘触发）两种。&lt;/p&gt;
+
+&lt;p&gt;在选择使用哪种方式的时候，需要根据 &lt;code class=&quot;highlighter-rouge&quot;&gt;fd&lt;/code&gt; 的多少和活跃程度来判断。当&lt;code class=&quot;highlighter-rouge&quot;&gt;fd&lt;/code&gt; 数量较少，且都比较活跃的时候，使用 select 或者 poll 反而有可能效率更高，因为毕竟 epoll 要有多次的回调函数。&lt;/p&gt;
+
+&lt;p&gt;好东西都是要付出代价的！&lt;/p&gt;
+
+&lt;h2 id=&quot;epoll为什么高效&quot;&gt;epoll为什么高效&lt;/h2&gt;
+&lt;h4 id=&quot;无需遍历整个集合&quot;&gt;无需遍历整个集合&lt;/h4&gt;
+&lt;p&gt;首先回忆一下select 模型，当有I/O 事件到来时，select 通知应用程序有事件到了快去处理，而应用程序必须轮询所有的fd集合，测试每个fd是否有事件发生，并处理事件；代码像下面这样:&lt;/p&gt;
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;res&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;select&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;maxfd&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;readfds&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;120&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;res&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MAX_CONNECTION&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+       &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FD_ISSET&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;allConnection&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;readfds&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+       &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+           &lt;span class=&quot;n&quot;&gt;handleEvent&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;allConnection&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+       &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;// if(res == 0) handle timeout, res &amp;lt; 0 handle error
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Epoll 不仅会告诉应用程序有I/0事件到来，还会告诉应用程序相关的信息，这些信息是应用程序填充的，因此根据这些信息应用程序就能直接定位到事件，而不必遍历整个fd集合&lt;/p&gt;
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;res&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;epoll_wait&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;epfd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;events&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;120&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;res&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;handleEvent&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;events&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;n&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;epoll-关键数据结构&quot;&gt;Epoll 关键数据结构&lt;/h4&gt;
+&lt;p&gt;Epoll 速度快和其数据结构密不可分，其关键数据结构就是：&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;struct epoll_event {
+    __uint32_t events;      // Epoll events
+    epoll_data_t data;      // User data variable
+};
+typedef union epoll_data {
+    void *ptr;
+    int fd;
+    __uint32_t u32;
+    __uint64_t u64;
+} epoll_data_t;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;可见epoll_data 是一个 union 结构体 , 借助于它应用程序可以保存很多类型的信息 :fd 、指针等等。有了它，应用程序就可以直接定位目标了。
+别小看了这些效率的提高,在一个大规模并发的服务器中,轮询IO是最耗时间的操作之一。&lt;/p&gt;
+
+&lt;p&gt;对比最早给出的阻塞IO的处理模型, 可以看到采用了多路复用IO之后, 程序可以自由的进行自己除了IO操作之外的工作, 只有到IO状态发生变化的时候由多路复用IO进行通知, 然后再采取相应的操作, 而不用一直阻塞等待IO状态发生变化了.&lt;/p&gt;
+
+&lt;h2 id=&quot;epoll的事件触发方式&quot;&gt;epoll的事件触发方式&lt;/h2&gt;
+&lt;h4 id=&quot;前言&quot;&gt;前言&lt;/h4&gt;
+&lt;p&gt;假如有这样一个例子：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;我们已经把一个用来从管道中读取数据的文件句柄(RFD)添加到epoll描述符&lt;/li&gt;
+  &lt;li&gt;这个时候从管道的另一端被写入了2KB的数据&lt;/li&gt;
+  &lt;li&gt;调用&lt;code class=&quot;highlighter-rouge&quot;&gt;epoll_wait()&lt;/code&gt;，并且它会返回RFD，说明它已经准备好读取操作&lt;/li&gt;
+  &lt;li&gt;然后我们读取了1KB的数据&lt;/li&gt;
+  &lt;li&gt;调用&lt;code class=&quot;highlighter-rouge&quot;&gt;epoll_wait()&lt;/code&gt;……&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;edge-triggered-工作模式&quot;&gt;Edge Triggered 工作模式：&lt;/h4&gt;
+&lt;p&gt;如果我们在第1步将RFD添加到epoll描述符的时候使用了EPOLLET标志，那么在第5步调用&lt;code class=&quot;highlighter-rouge&quot;&gt;epoll_wait()&lt;/code&gt;之后将有可能会挂起，因为剩余的数据还存在于文件的输入缓冲区内，而且数据发出端还在等待一个针对已经发出数据的反馈信息。只有在监视的文件句柄上发生了某个事件的时候 ET 工作模式才会汇报事件。因此在第5步的时候，调用者可能会放弃等待仍在存在于文件输入缓冲区内的剩余数据。在上面的例子中，会有一个事件产生在RFD句柄上，因为在第2步执行了一个写操作，然后，事件将会在第3步被销毁。&lt;/p&gt;
+
+&lt;p&gt;因为第4步的读取操作没有读空文件输入缓冲区内的数据，因此我们在第5步调用 &lt;code class=&quot;highlighter-rouge&quot;&gt;epoll_wait()&lt;/code&gt;完成后，是否挂起是不确定的。epoll工作在ET模式的时候，必须使用&lt;b&gt;非阻塞套接口&lt;/b&gt;，以避免由于一个文件句柄的阻塞读/阻塞写操作把处理多个文件描述符的任务饿死。最好以下面的方式调用ET模式的epoll接口，在后面会介绍避免可能的缺陷。&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;基于非阻塞文件句柄&lt;/li&gt;
+  &lt;li&gt;只有当&lt;code class=&quot;highlighter-rouge&quot;&gt;read()&lt;/code&gt;或者&lt;code class=&quot;highlighter-rouge&quot;&gt;write()&lt;/code&gt;返回EAGAIN时才需要挂起，等待。但这并不是说每次&lt;code class=&quot;highlighter-rouge&quot;&gt;read()&lt;/code&gt;时都需要循环读，直到读到产生一个EAGAIN才认为此次事件处理完成，当&lt;code class=&quot;highlighter-rouge&quot;&gt;read()&lt;/code&gt;返回的读到的数据长度小于请求的数据长度时，就可以确定此时缓冲中已没有数据了，也就可以认为此事读事件已处理完成&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;level-triggered-工作模式&quot;&gt;Level Triggered 工作模式&lt;/h4&gt;
+&lt;p&gt;相反的，以LT方式调用epoll接口的时候，它就相当于一个速度比较快的&lt;code class=&quot;highlighter-rouge&quot;&gt;poll()&lt;/code&gt;，并且无论后面的数据是否被使用，因此他们具有同样的职能。因为即使使用ET模式的epoll，在收到多个chunk的数据的时候仍然会产生多个事件。调用者可以设定EPOLLONESHOT标志，在 &lt;code class=&quot;highlighter-rouge&quot;&gt;epoll_wait()&lt;/code&gt;收到事件后epoll会与事件关联的文件句柄从epoll描述符中禁止掉。因此当EPOLLONESHOT设定后，使用带有 &lt;code class=&quot;highlighter-rouge&quot;&gt;EPOLL_CTL_MOD&lt;/code&gt;标志的&lt;code class=&quot;highlighter-rouge&quot;&gt;epoll_ctl()&lt;/code&gt;处理文件句柄就成为调用者必须作的事情。&lt;/p&gt;
+
+&lt;h4 id=&quot;总结-1&quot;&gt;总结&lt;/h4&gt;
+&lt;p&gt;&lt;strong&gt;LT&lt;/strong&gt;(level triggered水平触发或条件触发)是epoll缺省的工作方式，并且同时支持&lt;code class=&quot;highlighter-rouge&quot;&gt;block&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;no-block socket&lt;/code&gt;.在这种做法中，内核告诉你一个文件描述符是否就绪了，然后你可以对这个就绪的fd进行IO操作。如果你不作任何操作，内核还是会继续通知你的，所以，这种模式编程出错误可能性要小一点。传统的&lt;code class=&quot;highlighter-rouge&quot;&gt;select/poll&lt;/code&gt;都是这种模型的代表．&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;ET&lt;/strong&gt; (edge-triggered边缘触发或事件触发)是高速工作方式，只支持&lt;code class=&quot;highlighter-rouge&quot;&gt;no-block socket&lt;/code&gt;，它效率要比LT更高。ET与LT的区别在于，当一个新的事件到来时，ET模式下当然可以从&lt;code class=&quot;highlighter-rouge&quot;&gt;epoll_wait&lt;/code&gt;调用中获取到这个事件，&lt;b&gt;可是如果这次没有把这个事件对应的套接字缓冲区处理完，在这个套接字中没有新的事件再次到来时，在ET模式下是无法再次从&lt;code class=&quot;highlighter-rouge&quot;&gt;epoll_wait&lt;/code&gt;调用中获取这个事件的。而LT模式正好相反，只要一个事件对应的套接字缓冲区还有数据，就总能从&lt;code class=&quot;highlighter-rouge&quot;&gt;epoll_wait&lt;/code&gt;中获取这个事件&lt;/b&gt;。
+因此，LT模式下开发基于epoll的应用要简单些，不太容易出错。而在ET模式下事件发生时，如果没有彻底地将缓冲区数据处理完，则会导致缓冲区中的用户请求得不到响应。&lt;/p&gt;
+</description>
+        <pubDate>Wed, 20 Sep 2017 01:20:00 +0800</pubDate>
+        <link>http://localhost:4000/2017/09/19/io-reuse/</link>
+        <guid isPermaLink="true">http://localhost:4000/2017/09/19/io-reuse/</guid>
+        
+        <category>linux</category>
+        
+        <category>网络编程</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>Redis进阶教程</title>
+        <description>&lt;h3 id=&quot;目录&quot;&gt;目录&lt;/h3&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;a href=&quot;#summary&quot;&gt;简介&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#sort&quot;&gt;排序&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#transaction&quot;&gt;事物&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#pipeline&quot;&gt;管道&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#subpub&quot;&gt;发布/订阅&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#persistence&quot;&gt;持久化&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#master-slave&quot;&gt;主从复制&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#swapmemory&quot;&gt;虚拟内存&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#documents&quot;&gt;文档&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;hr /&gt;
+
+&lt;p id=&quot;summary&quot;&gt;&lt;/p&gt;
+&lt;h3 id=&quot;简介&quot;&gt;&lt;a href=&quot;#summary&quot;&gt;简介&lt;/a&gt;&lt;/h3&gt;
+
+&lt;p&gt;Redis是一个开源的&lt;code class=&quot;highlighter-rouge&quot;&gt;key-value&lt;/code&gt;数据库。它又经常被认为是一个数据结构服务器。因为它的&lt;code class=&quot;highlighter-rouge&quot;&gt;value&lt;/code&gt;不仅包括基本的&lt;code class=&quot;highlighter-rouge&quot;&gt;string&lt;/code&gt;类型还有&lt;code class=&quot;highlighter-rouge&quot;&gt;list&lt;/code&gt;,&lt;code class=&quot;highlighter-rouge&quot;&gt;set&lt;/code&gt; ,&lt;code class=&quot;highlighter-rouge&quot;&gt;sorted set&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;hash&lt;/code&gt;类型。当然这些类型的元素也都是&lt;code class=&quot;highlighter-rouge&quot;&gt;string&lt;/code&gt;类型。也就是说&lt;code class=&quot;highlighter-rouge&quot;&gt;list&lt;/code&gt;,&lt;code class=&quot;highlighter-rouge&quot;&gt;set&lt;/code&gt;这些集合类型也只能包含&lt;code class=&quot;highlighter-rouge&quot;&gt;string&lt;/code&gt;类型。&lt;/p&gt;
+
+&lt;p&gt;你可以在这些类型上做很多原子性的操作。比如对一个字符&lt;code class=&quot;highlighter-rouge&quot;&gt;value&lt;/code&gt;追加字符串（&lt;code class=&quot;highlighter-rouge&quot;&gt;APPEND&lt;/code&gt;命令）。加加或者减减一个数字字符串(&lt;code class=&quot;highlighter-rouge&quot;&gt;INCR&lt;/code&gt;命令，当然是按整数处理的).可以对&lt;code class=&quot;highlighter-rouge&quot;&gt;list&lt;/code&gt;类型进行&lt;code class=&quot;highlighter-rouge&quot;&gt;push&lt;/code&gt;,或者&lt;code class=&quot;highlighter-rouge&quot;&gt;pop&lt;/code&gt;元素操作（可以模拟栈和队列）。对于&lt;code class=&quot;highlighter-rouge&quot;&gt;set&lt;/code&gt;类型可以进行一些集合相关操作 (&lt;code class=&quot;highlighter-rouge&quot;&gt;intersection union difference&lt;/code&gt;)。&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;memcache&lt;/code&gt;也有类似与&lt;code class=&quot;highlighter-rouge&quot;&gt;++&lt;/code&gt;,&lt;code class=&quot;highlighter-rouge&quot;&gt;--&lt;/code&gt;的命令。不过&lt;code class=&quot;highlighter-rouge&quot;&gt;memcache&lt;/code&gt;的&lt;code class=&quot;highlighter-rouge&quot;&gt;value&lt;/code&gt;只包括&lt;code class=&quot;highlighter-rouge&quot;&gt;string&lt;/code&gt;类型。远没有&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;的&lt;code class=&quot;highlighter-rouge&quot;&gt;value&lt;/code&gt;类型丰富。和&lt;code class=&quot;highlighter-rouge&quot;&gt;memcahe&lt;/code&gt;一样为了性能。&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;的数据通常都是放到内存中的。当然&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;可以每间隔一定时间将内存中数据写入到磁盘以防止数据丢失。&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;也支持主从复制机制（&lt;code class=&quot;highlighter-rouge&quot;&gt;master-slave replication&lt;/code&gt;）。&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;的其他特性包括简单的事务支持和发布订阅(&lt;code class=&quot;highlighter-rouge&quot;&gt;pub/sub&lt;/code&gt;)通道功能,而且&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;配置管理非常简单。还有各种语言版本的开源客户端类库。&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p id=&quot;sort&quot;&gt;&lt;/p&gt;
+&lt;h3 id=&quot;排序&quot;&gt;&lt;a href=&quot;#sort&quot;&gt;排序&lt;/a&gt;&lt;/h3&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;支持对&lt;code class=&quot;highlighter-rouge&quot;&gt;list&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;set&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;sorted set&lt;/code&gt;元素的排序。排序命令是&lt;code class=&quot;highlighter-rouge&quot;&gt;sort&lt;/code&gt; 完整的命令格式如下&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;127.0.0.1:6379&amp;gt; help sort
+
+  SORT key [BY pattern] [LIMIT offset count] [GET pattern [GET pattern ...]] [ASC|DESC] [ALPHA] [STORE destination]
+  summary: Sort the elements in a list, set or sorted set
+  since: 1.0.0
+  group: generic
+
+127.0.0.1:6379&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;h5 id=&quot;sort-key&quot;&gt;sort key&lt;/h5&gt;
+
+&lt;p&gt;这种是直接对一个数据结构进行排序&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;127.0.0.1:6379&amp;gt; rpush l 3 4 1 5 2
+(integer) 5
+127.0.0.1:6379&amp;gt; lrange l 0 5
+1) &quot;3&quot;
+2) &quot;4&quot;
+3) &quot;1&quot;
+4) &quot;5&quot;
+5) &quot;2&quot;
+127.0.0.1:6379&amp;gt; sort l
+1) &quot;1&quot;
+2) &quot;2&quot;
+3) &quot;3&quot;
+4) &quot;4&quot;
+5) &quot;5&quot;
+127.0.0.1:6379&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;对set进行添加变量的时候，他会自动排序，所以用不到sort这种简单的功能。&lt;/p&gt;
+
+&lt;h5 id=&quot;ascdesc-alpha&quot;&gt;[ASC|DESC] [ALPHA]&lt;/h5&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;sort&lt;/code&gt;默认的排序方式（&lt;code class=&quot;highlighter-rouge&quot;&gt;asc&lt;/code&gt;）是从小到大排的,当然也可以按照逆序或者按字符顺序排。逆序可以加上&lt;code class=&quot;highlighter-rouge&quot;&gt;desc&lt;/code&gt;选项，想按字母顺序排可以加&lt;code class=&quot;highlighter-rouge&quot;&gt;alpha&lt;/code&gt;选项，当然&lt;code class=&quot;highlighter-rouge&quot;&gt;alpha&lt;/code&gt;可以和&lt;code class=&quot;highlighter-rouge&quot;&gt;desc&lt;/code&gt;一起用。下面是个按字母顺序排的例子&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;127.0.0.1:6379&amp;gt; lpush l xiaoh huo xingming beijing changping
+(integer) 5
+127.0.0.1:6379&amp;gt; lrange l 0 5
+1) &quot;changping&quot;
+2) &quot;beijing&quot;
+3) &quot;xingming&quot;
+4) &quot;huo&quot;
+5) &quot;xiaoh&quot;
+127.0.0.1:6379&amp;gt; sort l alpha
+1) &quot;beijing&quot;
+2) &quot;changping&quot;
+3) &quot;huo&quot;
+4) &quot;xiaoh&quot;
+5) &quot;xingming&quot;
+127.0.0.1:6379&amp;gt; sort l alpha desc
+1) &quot;xingming&quot;
+2) &quot;xiaoh&quot;
+3) &quot;huo&quot;
+4) &quot;changping&quot;
+5) &quot;beijing&quot;
+127.0.0.1:6379&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;h5 id=&quot;by-pattern&quot;&gt;[BY pattern]&lt;/h5&gt;
+
+&lt;p&gt;Redis 支持将集合元素内容按照给定的&lt;code class=&quot;highlighter-rouge&quot;&gt;pattern&lt;/code&gt;进行组合成新的KEY, 并按照新的KEY的对应内容进行排序，如下：&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;127.0.0.1:6379&amp;gt; lpush l e s g f a
+(integer) 5
+127.0.0.1:6379&amp;gt; lrange l 0 9
+1) &quot;a&quot;
+2) &quot;f&quot;
+3) &quot;g&quot;
+4) &quot;s&quot;
+5) &quot;e&quot;
+127.0.0.1:6379&amp;gt; sort l alpha
+1) &quot;a&quot;
+2) &quot;e&quot;
+3) &quot;f&quot;
+4) &quot;g&quot;
+5) &quot;s&quot;
+127.0.0.1:6379&amp;gt; set namea 4
+OK
+127.0.0.1:6379&amp;gt; set namee 5
+OK
+127.0.0.1:6379&amp;gt; set namef 3
+OK
+127.0.0.1:6379&amp;gt; set nameg 1
+OK
+127.0.0.1:6379&amp;gt; set names 2
+OK
+127.0.0.1:6379&amp;gt; sort l by name*
+1) &quot;g&quot;
+2) &quot;s&quot;
+3) &quot;f&quot;
+4) &quot;a&quot;
+5) &quot;e&quot;
+127.0.0.1:6379&amp;gt; set namea xiaoh
+OK
+127.0.0.1:6379&amp;gt; set namee me
+OK
+127.0.0.1:6379&amp;gt; set namef huo
+OK
+127.0.0.1:6379&amp;gt; set nameg blog
+OK
+127.0.0.1:6379&amp;gt; set names xingming
+OK
+127.0.0.1:6379&amp;gt; sort l by name* alpha
+1) &quot;g&quot;
+2) &quot;f&quot;
+3) &quot;e&quot;
+4) &quot;a&quot;
+5) &quot;s&quot;
+127.0.0.1:6379&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;以上实验了数字和字母的对应KEY，可以看出，在生成对应的新kEY之后，按照对应的内容进行了排序，并且返回的是原来的key的排序。&lt;/p&gt;
+
+&lt;h5 id=&quot;get-pattern&quot;&gt;[GET PATTERN]&lt;/h5&gt;
+
+&lt;p&gt;上面的方法返回的是原始的数据内容，如果想获得新的KEY对应的值（也就是进行排序的KEY）可以使用 GET PATTERN&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;127.0.0.1:6379&amp;gt; sort l by name* alpha get name*
+1) &quot;blog&quot;
+2) &quot;huo&quot;
+3) &quot;me&quot;
+4) &quot;xiaoh&quot;
+5) &quot;xingming&quot;
+127.0.0.1:6379&amp;gt; sort l by name* alpha get name* get #
+ 1) &quot;blog&quot;
+ 2) &quot;g&quot;
+ 3) &quot;huo&quot;
+ 4) &quot;f&quot;
+ 5) &quot;me&quot;
+ 6) &quot;e&quot;
+ 7) &quot;xiaoh&quot;
+ 8) &quot;a&quot;
+ 9) &quot;xingming&quot;
+10) &quot;s&quot;
+127.0.0.1:6379&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;GET 可以多次使用，上面就是一个例子，获取新的对应值的时候，将原始的内容也进行了获取。&lt;/p&gt;
+
+&lt;p&gt;也可以根据自己的内容排序，之后获取对应PATTERN值得列表&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;127.0.0.1:6379&amp;gt; sort l alpha
+1) &quot;a&quot;
+2) &quot;e&quot;
+3) &quot;f&quot;
+4) &quot;g&quot;
+5) &quot;s&quot;
+127.0.0.1:6379&amp;gt; sort l alpha get name*
+1) &quot;xiaoh&quot;
+2) &quot;me&quot;
+3) &quot;huo&quot;
+4) &quot;blog&quot;
+5) &quot;xingming&quot;
+127.0.0.1:6379&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;这里的GET还可以获取对象中的一个字段的值（hash可以作为对象来使用）使用特殊字符&lt;code class=&quot;highlighter-rouge&quot;&gt;-&amp;gt;&lt;/code&gt;&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;127.0.0.1:6379&amp;gt; lpush l 5 3 4 2 1
+(integer) 5
+127.0.0.1:6379&amp;gt; hset user1 name this
+(integer) 1
+127.0.0.1:6379&amp;gt; hset user4 name xiaoh
+(integer) 1
+127.0.0.1:6379&amp;gt; hset user2 name blog
+(integer) 1
+127.0.0.1:6379&amp;gt; hset user5 name me
+(integer) 1
+127.0.0.1:6379&amp;gt; hset user3 name from
+(integer) 1
+127.0.0.1:6379&amp;gt; sort l get user*-&amp;gt;name
+1) &quot;this&quot;
+2) &quot;blog&quot;
+3) &quot;from&quot;
+4) &quot;xiaoh&quot;
+5) &quot;me&quot;
+127.0.0.1:6379&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;如果对应的hash对象不存在，会返回&lt;code class=&quot;highlighter-rouge&quot;&gt;(nil)&lt;/code&gt;&lt;/p&gt;
+
+&lt;h5 id=&quot;limit-start-count&quot;&gt;[LIMIT start count]&lt;/h5&gt;
+
+&lt;p&gt;默认排序结果全部显示，可以使用LIMIT来限制显示的数量，下标start默认从0开始&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;127.0.0.1:6379&amp;gt; sort l limit 2 3
+1) &quot;3&quot;
+2) &quot;4&quot;
+3) &quot;5&quot;
+127.0.0.1:6379&amp;gt;
+
+127.0.0.1:6379&amp;gt; sort l get user*-&amp;gt;name limit 1 3
+1) &quot;blog&quot;
+2) &quot;from&quot;
+3) &quot;xiaoh&quot;
+127.0.0.1:6379&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;h5 id=&quot;store-dstkey&quot;&gt;[STORE dstkey]&lt;/h5&gt;
+
+&lt;p&gt;如果对集合经常按照固定的模式去排序，那么把排序结果缓存起来会减少不少&lt;code class=&quot;highlighter-rouge&quot;&gt;cpu&lt;/code&gt;开销.使用&lt;code class=&quot;highlighter-rouge&quot;&gt;store&lt;/code&gt;选项可以将排序内容保存到指定&lt;code class=&quot;highlighter-rouge&quot;&gt;key&lt;/code&gt;中。保存的类型是&lt;code class=&quot;highlighter-rouge&quot;&gt;list&lt;/code&gt;&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;127.0.0.1:6379&amp;gt; sort l get user*-&amp;gt;name limit 1 3 store dst
+(integer) 3
+127.0.0.1:6379&amp;gt; lrange dst 0 -1
+1) &quot;blog&quot;
+2) &quot;from&quot;
+3) &quot;xiaoh&quot;
+127.0.0.1:6379&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;功能介绍完后，再讨论下关于排序的一些问题。如果我们有多个&lt;code class=&quot;highlighter-rouge&quot;&gt;redis server&lt;/code&gt;的话，不同的&lt;code class=&quot;highlighter-rouge&quot;&gt;key&lt;/code&gt;可能存在于不同的&lt;code class=&quot;highlighter-rouge&quot;&gt;server&lt;/code&gt;上。比如name1 name2 name3 name4 name5，很有可能分别在多个不同的&lt;code class=&quot;highlighter-rouge&quot;&gt;server&lt;/code&gt;上存贮着。这种情况会对排序性能造成很大的影响。&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;作者在他的&lt;code class=&quot;highlighter-rouge&quot;&gt;blog&lt;/code&gt;上提到了这个问题的解决办法，就是通过&lt;code class=&quot;highlighter-rouge&quot;&gt;key tag&lt;/code&gt;将需要排序的&lt;code class=&quot;highlighter-rouge&quot;&gt;key&lt;/code&gt;都放到同一个&lt;code class=&quot;highlighter-rouge&quot;&gt;server&lt;/code&gt;上 。&lt;/p&gt;
+
+&lt;p&gt;由于具体决定哪个&lt;code class=&quot;highlighter-rouge&quot;&gt;key&lt;/code&gt;存在哪个服务器上一般都是在&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;端&lt;code class=&quot;highlighter-rouge&quot;&gt;hash&lt;/code&gt;的办法来做的。我们可以通过只对&lt;code class=&quot;highlighter-rouge&quot;&gt;key&lt;/code&gt;的部分进行&lt;code class=&quot;highlighter-rouge&quot;&gt;hash&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;举个例子假如我们的&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;如果发现&lt;code class=&quot;highlighter-rouge&quot;&gt;key&lt;/code&gt;中包含&lt;code class=&quot;highlighter-rouge&quot;&gt;[]&lt;/code&gt;。那么只对&lt;code class=&quot;highlighter-rouge&quot;&gt;key&lt;/code&gt;中&lt;code class=&quot;highlighter-rouge&quot;&gt;[]&lt;/code&gt;包含的内容进行&lt;code class=&quot;highlighter-rouge&quot;&gt;hash&lt;/code&gt;。我们将四个&lt;code class=&quot;highlighter-rouge&quot;&gt;name&lt;/code&gt;相关的&lt;code class=&quot;highlighter-rouge&quot;&gt;key&lt;/code&gt;，都这样命名&lt;code class=&quot;highlighter-rouge&quot;&gt;[name]1 [name]2 [name]3 [name]4 [name]5&lt;/code&gt;，于是&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;程序就会把他们都放到同一&lt;code class=&quot;highlighter-rouge&quot;&gt;server&lt;/code&gt;上。&lt;/p&gt;
+
+&lt;p&gt;还有一个问题也比较严重。如果要&lt;code class=&quot;highlighter-rouge&quot;&gt;sort&lt;/code&gt;的集合非常大的话排序就会消耗很长时间。由于&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;单线程的，所以长时间的排序操作会阻塞其他&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;的请求。解决办法是通过主从复制机制将数据复制到多个&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;上。然后我们只在&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;上做排序操作。并进可能的对排序结果缓存。另外就是一个方案是就是采用&lt;code class=&quot;highlighter-rouge&quot;&gt;sorted set&lt;/code&gt;对需要按某个顺序访问的集合建立索引。&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p id=&quot;transaction&quot;&gt;&lt;/p&gt;
+&lt;h3 id=&quot;事物&quot;&gt;&lt;a href=&quot;#transaction&quot;&gt;事物&lt;/a&gt;&lt;/h3&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;对事务的支持目前还比较简单。&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;只能保证一个&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;发起的事务中的命令可以连续的执行，而中间不会插入其他&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;的命令。由于&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;是单线程来处理所有&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;的请求的所以做到这点是很容易的。&lt;/p&gt;
+
+&lt;h5 id=&quot;multi&quot;&gt;multi&lt;/h5&gt;
+
+&lt;p&gt;一般情况下&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;在接受到一个&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;发来的命令后会立即处理并返回处理结果，但是当一个&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;在一个连接中发出&lt;code class=&quot;highlighter-rouge&quot;&gt;multi&lt;/code&gt;命令，这个连接会进入一个事务上下文，该连接后续的命令并不是立即执行，而是先放到一个队列中。当从此连接受到&lt;code class=&quot;highlighter-rouge&quot;&gt;exec&lt;/code&gt;命令后，&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;会顺序的执行队列中的所有命令。并将所有命令的运行结果打包到一起返回给&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;.然后此连接就结束事务上下文.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;127.0.0.1:6379&amp;gt; multi
+OK
+127.0.0.1:6379&amp;gt; incr a
+QUEUED
+127.0.0.1:6379&amp;gt; incr a
+QUEUED
+127.0.0.1:6379&amp;gt; incr b
+QUEUED
+127.0.0.1:6379&amp;gt; exec
+1) (integer) 1
+2) (integer) 2
+3) (integer) 1
+127.0.0.1:6379&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;例子中已经说明，当执行&lt;code class=&quot;highlighter-rouge&quot;&gt;incr a&lt;/code&gt; &lt;code class=&quot;highlighter-rouge&quot;&gt;incr b&lt;/code&gt; 的时候，是放到了队列里面，当&lt;code class=&quot;highlighter-rouge&quot;&gt;exec&lt;/code&gt;时，执行了队列中的命令。&lt;/p&gt;
+
+&lt;p&gt;当事物写到一半，可以用&lt;code class=&quot;highlighter-rouge&quot;&gt;discard&lt;/code&gt;来取消事物&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;127.0.0.1:6379&amp;gt; multi
+OK
+127.0.0.1:6379&amp;gt; incr a
+QUEUED
+127.0.0.1:6379&amp;gt; incr b
+QUEUED
+127.0.0.1:6379&amp;gt; discard
+OK
+127.0.0.1:6379&amp;gt; get a
+&quot;2&quot;
+127.0.0.1:6379&amp;gt; get b
+&quot;1&quot;
+127.0.0.1:6379&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;可以发现这次&lt;code class=&quot;highlighter-rouge&quot;&gt;incr a&lt;/code&gt; &lt;code class=&quot;highlighter-rouge&quot;&gt;incr b&lt;/code&gt;都没被执行。&lt;code class=&quot;highlighter-rouge&quot;&gt;discard&lt;/code&gt;命令其实就是清空事务的命令队列并退出事务上下文&lt;/p&gt;
+
+&lt;h5 id=&quot;watch&quot;&gt;watch&lt;/h5&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Watch&lt;/code&gt; 监视一个(或多个) key ，如果在事务执行之前这个(或这些) key 被其他命令所改动，那么事务将被打断。&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;127.0.0.1:6379&amp;gt; watch a
+OK
+127.0.0.1:6379&amp;gt; get a
+&quot;5&quot;
+127.0.0.1:6379&amp;gt; set a 6
+OK
+127.0.0.1:6379&amp;gt; incr a
+(integer) 7
+127.0.0.1:6379&amp;gt; get a
+&quot;7&quot;
+127.0.0.1:6379&amp;gt; multi
+OK
+127.0.0.1:6379&amp;gt; set a 2
+QUEUED
+127.0.0.1:6379&amp;gt; exec
+(nil)
+127.0.0.1:6379&amp;gt; get a
+&quot;7&quot;
+127.0.0.1:6379&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;exec&lt;/code&gt; &lt;code class=&quot;highlighter-rouge&quot;&gt;discard&lt;/code&gt; &lt;code class=&quot;highlighter-rouge&quot;&gt;unwatch&lt;/code&gt; 会清除 &lt;code class=&quot;highlighter-rouge&quot;&gt;watch&lt;/code&gt; 的监听&lt;/p&gt;
+
+&lt;h5 id=&quot;缺点&quot;&gt;缺点&lt;/h5&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;的事务实现是如此简单，当然会存在一些问题。第一个问题是&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;只能保证事务的每个命令连续执行，但是如果事务中的一个命令失败了，并不回滚其他命令，比如使用的命令类型不匹配。&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;127.0.0.1:6379&amp;gt; set b 1
+OK
+127.0.0.1:6379&amp;gt; set a e
+OK
+127.0.0.1:6379&amp;gt; multi
+OK
+127.0.0.1:6379&amp;gt; incr a
+QUEUED
+127.0.0.1:6379&amp;gt; incr b
+QUEUED
+127.0.0.1:6379&amp;gt; exec
+1) (error) ERR value is not an integer or out of range
+2) (integer) 2
+127.0.0.1:6379&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;可以发现，虽然执行中间有问题，但并没有回滚，其他命令还是执行了。&lt;/p&gt;
+
+&lt;p&gt;最后一个十分罕见的问题是，当事务的执行过程中，如果&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;意外的挂了。很遗憾只有部分命令执行了，后面的也就被丢弃了。当然如果我们使用的&lt;code class=&quot;highlighter-rouge&quot;&gt;append-only file&lt;/code&gt;方式持久化，&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;会用单个&lt;code class=&quot;highlighter-rouge&quot;&gt;write&lt;/code&gt;操作写入整个事务内容。即是是这种方式还是有可能只部分写入了事务到磁盘。发生部分写入事务的情况下，&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;重启时会检测到这种情况，然后失败退出。可以使用&lt;code class=&quot;highlighter-rouge&quot;&gt;redis-check-aof&lt;/code&gt;工具进行修复，修复会删除部分写入的事务内容。修复完后就能够重新启动了。&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p id=&quot;pipeline&quot;&gt;&lt;/p&gt;
+&lt;h3 id=&quot;管道&quot;&gt;&lt;a href=&quot;#pipeline&quot;&gt;管道&lt;/a&gt;&lt;/h3&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;是一个&lt;code class=&quot;highlighter-rouge&quot;&gt;cs&lt;/code&gt;模式的&lt;code class=&quot;highlighter-rouge&quot;&gt;tcp server&lt;/code&gt;，使用和&lt;code class=&quot;highlighter-rouge&quot;&gt;http&lt;/code&gt;类似的请求响应协议。&lt;/p&gt;
+
+&lt;p&gt;一个&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;可以通过一个&lt;code class=&quot;highlighter-rouge&quot;&gt;socket&lt;/code&gt;连接发起多个请求命令。每个请求命令发出后&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;通常会阻塞并等待&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;服务处理，&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;处理完后请求命令后会将结果通过响应报文返回给&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;。基本的通信过程如下&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Client: INCR X
+Server: 1
+Client: INCR X
+Server: 2
+Client: INCR X
+Server: 3
+Client: INCR X
+Server: 4
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;基本上四个命令需要8个&lt;code class=&quot;highlighter-rouge&quot;&gt;tcp&lt;/code&gt;报文才能完成。由于通信会有网络延迟,假如从&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;server&lt;/code&gt;之间的包传输时间需要0.125秒。那么上面的四个命令8个报文至少会需要1秒才能完成。这样即使&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;每秒能处理100个命令，而我们的&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;也只能一秒钟发出四个命令。这显示没有充分利用&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;的处理能力。除了可以利用&lt;code class=&quot;highlighter-rouge&quot;&gt;mget&lt;/code&gt;,&lt;code class=&quot;highlighter-rouge&quot;&gt;mset&lt;/code&gt;之类的单条命令处理多个&lt;code class=&quot;highlighter-rouge&quot;&gt;key&lt;/code&gt;的命令外我们还可以利用&lt;code class=&quot;highlighter-rouge&quot;&gt;pipeline&lt;/code&gt;的方式从&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;打包多条命令一起发出，不需要等待单条命令的响应返回，而&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;服务端会处理完多条命令后会将多条命令的处理结果打包到一起返回给客户端。通信过程如下&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Client: INCR X
+Client: INCR X
+Client: INCR X
+Client: INCR X
+Server: 1
+Server: 2
+Server: 3
+Server: 4
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;假设不会因为&lt;code class=&quot;highlighter-rouge&quot;&gt;tcp&lt;/code&gt;报文过长而被拆分。可能两个&lt;code class=&quot;highlighter-rouge&quot;&gt;tcp&lt;/code&gt;报文就能完成四条命令,&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;可以将四个&lt;code class=&quot;highlighter-rouge&quot;&gt;incr&lt;/code&gt;命令放到一个&lt;code class=&quot;highlighter-rouge&quot;&gt;tcp&lt;/code&gt;报文一起发送，&lt;code class=&quot;highlighter-rouge&quot;&gt;server&lt;/code&gt;则可以将四条命令的处理结果放到一个&lt;code class=&quot;highlighter-rouge&quot;&gt;tcp&lt;/code&gt;报文返回。&lt;/p&gt;
+
+&lt;p&gt;通过&lt;code class=&quot;highlighter-rouge&quot;&gt;pipeline&lt;/code&gt;方式当有大批量的操作时候。我们可以节省很多原来浪费在网络延迟的时间。需要注意到是用&lt;code class=&quot;highlighter-rouge&quot;&gt;pipeline&lt;/code&gt;方式打包命令发送，&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;必须在处理完所有命令前先缓存起所有命令的处理结果。打包的命令越多，缓存消耗内存也越多。所以并是不是打包的命令越多越好。具体多少合适需要根据具体情况测试。&lt;/p&gt;
+
+&lt;p&gt;下面是我测试是否使用pipeline的代码：&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;from redis import Redis
+import time
+
+r = Redis()
+
+def without_pipeline(times=100000):
+    r.set('a', 0)
+    for i in range(times):
+        r.incr('a')
+
+def use_pipeline(times=100000):
+    r.set('a', 0)
+    r.set('a', 0)
+    pip = r.pipeline()
+    for i in range(times):
+        pip.incr('a')
+    pip.execute()
+
+start = time.time()
+without_pipeline()
+end = time.time()
+print 'without pipeline spendtime:%f' % (end-start)
+
+start = time.time()
+use_pipeline()
+end = time.time()
+print 'use pipeline spendtime:%f' % (end-start)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;结果为：&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;without pipeline spendtime:4.221240
+use pipeline spendtime:1.572646
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;看起来对效果提升还是很明显的。&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p id=&quot;subpub&quot;&gt;&lt;/p&gt;
+&lt;h3 id=&quot;发布订阅&quot;&gt;&lt;a href=&quot;#subpub&quot;&gt;发布/订阅&lt;/a&gt;&lt;/h3&gt;
+
+&lt;p&gt;发布订阅(&lt;code class=&quot;highlighter-rouge&quot;&gt;pub/sub&lt;/code&gt;)是一种消息通信模式，主要的目的是解耦消息发布者和消息订阅者之间的耦合，这点和设计模式中的观察者模式比较相似。&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;pub/sub&lt;/code&gt;不仅仅解决发布者和订阅者直接代码级别耦合也解决两者在物理部署上的耦合。&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;作为一个&lt;code class=&quot;highlighter-rouge&quot;&gt;pub/sub server&lt;/code&gt;，在订阅者和发布者之间起到了消息路由的功能。订阅者可以通过&lt;code class=&quot;highlighter-rouge&quot;&gt;subscribe&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;psubscribe&lt;/code&gt;命令向&lt;code class=&quot;highlighter-rouge&quot;&gt;redis server&lt;/code&gt;订阅自己感兴趣的消息类型，&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;将消息类型称为通道(&lt;code class=&quot;highlighter-rouge&quot;&gt;channel&lt;/code&gt;)。当发布者通过&lt;code class=&quot;highlighter-rouge&quot;&gt;publish&lt;/code&gt;命令向&lt;code class=&quot;highlighter-rouge&quot;&gt;redis server&lt;/code&gt;发送特定类型的消息时。订阅该消息类型的全部&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;都会收到此消息。这里消息的传递是多对多的。一个&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;可以订阅多个&lt;code class=&quot;highlighter-rouge&quot;&gt;channel&lt;/code&gt;,也可以向多个&lt;code class=&quot;highlighter-rouge&quot;&gt;channel&lt;/code&gt;发送消息。&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Pub/Sub&lt;/code&gt;功能（&lt;code class=&quot;highlighter-rouge&quot;&gt;means Publish&lt;/code&gt;, &lt;code class=&quot;highlighter-rouge&quot;&gt;Subscribe&lt;/code&gt;）即发布及订阅功能。基于事件的系统中，&lt;code class=&quot;highlighter-rouge&quot;&gt;Pub/Sub&lt;/code&gt;是目前广泛使用的通信模型，它采用事件作为基本的通信机制，提供大规模系统所要求的松散耦合的交互模式：订阅者(如客户端)以事件订阅的方式表达出它有兴趣接收的一个事件或一类事件；发布者(如服务器)可将订阅者感兴趣的事件随时通知相关订阅者。&lt;/p&gt;
+
+&lt;p&gt;Pub/Sub是可适用于可扩展要求高、松散耦合系统的分布式交互模型&lt;/p&gt;
+
+&lt;p&gt;在抽象层中，它的时间非耦合、空间非耦合和同步非耦合性可允许参与者不依赖另一个而独立操作，具有一定的可扩展性；然而在实现层，可扩展性仍受其他原因的牵制。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;灵活的订阅要求复杂的过滤和路由算法&lt;/li&gt;
+  &lt;li&gt;高可用性开销（事件侦听、日志重传）；&lt;/li&gt;
+  &lt;li&gt;消息认可带来的网络流量消耗；&lt;/li&gt;
+  &lt;li&gt;庞大的订阅者数据带来的系统开销；&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;基于事件的Pub/Sub中间件的开发与利用在一定程度上可以提高系统的效率。&lt;/p&gt;
+
+&lt;p&gt;以下是我的测试：&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# code
+import time, redis
+
+r = redis.StrictRedis()
+p = r.pubsub()
+channel = 'channel'
+
+def handler(message):
+    print 'Receive msg:%s' % message['data']
+
+p.subscribe(**{channel:handler})
+
+thread = p.run_in_thread(sleep_time=0.01)
+
+time.sleep(60)
+thread.stop()
+
+# running script
+python pubsub.py
+
+# ipython
+In [2]: import redis
+In [3]: r = redis.StrictRedis()
+In [5]: r.publish('channel', 'xiaoh.me')
+Out[5]: 1L
+In [6]: r.publish('channel', 'my name is xiaoh')
+Out[6]: 1L
+
+# script output
+Receive msg:xiaoh.me
+Receive msg:my name is xiaoh
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;以上进行了简单的测试。&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p id=&quot;persistence&quot;&gt;&lt;/p&gt;
+&lt;h3 id=&quot;持久化&quot;&gt;&lt;a href=&quot;#persistence&quot;&gt;持久化&lt;/a&gt;&lt;/h3&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Redis&lt;/code&gt;是一个支持持久化的内存数据库，也就是说&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;需要经常将内存中的数据同步到磁盘来保证持久化。&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;支持两种持久化方式，一种是&lt;code class=&quot;highlighter-rouge&quot;&gt;Snapshotting&lt;/code&gt;（快照）也是默认方式，另一种是&lt;code class=&quot;highlighter-rouge&quot;&gt;Append-only file&lt;/code&gt;（缩写aof）的方式。下面分别介绍&lt;/p&gt;
+
+&lt;h5 id=&quot;snapshotting&quot;&gt;Snapshotting&lt;/h5&gt;
+
+&lt;p&gt;快照是默认的持久化方式。这种方式是就是将内存中数据以快照的方式写入到二进制文件中,默认的文件名为&lt;code class=&quot;highlighter-rouge&quot;&gt;dump.rdb&lt;/code&gt;。可以通过配置设置自动做快照持久化的方式。我们可以配置&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;在n秒内如果超过m个key被修改就自动做快照，下面是默认的快照保存配置&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;save 900 1  #900秒内如果超过1个key被修改，则发起快照保存
+save 300 10 #300秒内容如超过10个key被修改，则发起快照保存
+save 60 10000
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;下面介绍详细的快照保存过程&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;调用&lt;code class=&quot;highlighter-rouge&quot;&gt;fork&lt;/code&gt;,现在有了子进程和父进程。&lt;/li&gt;
+  &lt;li&gt;父进程继续处理&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;请求，子进程负责将内存内容写入到临时文件。由于os的写时复制机制（&lt;code class=&quot;highlighter-rouge&quot;&gt;copy on write&lt;/code&gt;)父子进程会共享相同的物理页面，当父进程处理写请求时os会为父进程要修改的页面创建副本，而不是写共享的页面。所以子进程的地址空间内的数据是&lt;code class=&quot;highlighter-rouge&quot;&gt;fork&lt;/code&gt;时刻整个数据库的一个快照。&lt;/li&gt;
+  &lt;li&gt;当子进程将快照写入临时文件完毕后，用临时文件替换原来的快照文件，然后子进程退出。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;也可以使用&lt;code class=&quot;highlighter-rouge&quot;&gt;save&lt;/code&gt;或者&lt;code class=&quot;highlighter-rouge&quot;&gt;bgsave&lt;/code&gt;命令通知&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;做一次快照持久化。&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;save&lt;/code&gt;操作是在主线程中保存快照的，由于&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;是用一个主线程来处理所有 &lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;的请求，这种方式会阻塞所有&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;请求。所以不推荐使用。另一点需要注意的是，每次快照持久化都是将内存数据完整写入到磁盘一次，并不是增量的只同步脏数据。如果数据量大的话，而且写操作比较多，必然会引起大量的磁盘io操作，可能会严重影响性能。&lt;/p&gt;
+
+&lt;p&gt;另外由于快照方式是在一定间隔时间做一次的，所以如果&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;意外&lt;code class=&quot;highlighter-rouge&quot;&gt;down&lt;/code&gt;掉的话，就会丢失最后一次快照后的所有修改。如果应用要求不能丢失任何修改的话，可以采用&lt;code class=&quot;highlighter-rouge&quot;&gt;aof&lt;/code&gt;持久化方式。&lt;/p&gt;
+
+&lt;h5 id=&quot;append-only-file&quot;&gt;Append-only file&lt;/h5&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;aof&lt;/code&gt;比快照方式有更好的持久化性，是由于在使用&lt;code class=&quot;highlighter-rouge&quot;&gt;aof&lt;/code&gt;持久化方式时,&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;会将每一个收到的写命令都通过&lt;code class=&quot;highlighter-rouge&quot;&gt;write&lt;/code&gt;函数追加到文件中(默认是 &lt;code class=&quot;highlighter-rouge&quot;&gt;appendonly.aof&lt;/code&gt;)。&lt;/p&gt;
+
+&lt;p&gt;当&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;重启时会通过重新执行文件中保存的写命令来在内存中重建整个数据库的内容。当然由于os会在内核中缓存&lt;code class=&quot;highlighter-rouge&quot;&gt;write&lt;/code&gt;做的修改，所以可能不是立即写到磁盘上。这样aof方式的持久化也还是有可能会丢失部分修改。不过我们可以通过配置文件告诉&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;我们想要通过&lt;code class=&quot;highlighter-rouge&quot;&gt;fsync&lt;/code&gt;函数强制os写入到磁盘的时机。有三种方式如下（默认是：每秒fsync一次）&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;appendonly yes           //启用aof持久化方式&lt;/li&gt;
+  &lt;li&gt;appendfsync always       //每次收到写命令就立即强制写入磁盘，最慢的，但是保证完全的持久化，不推荐使用&lt;/li&gt;
+  &lt;li&gt;appendfsync everysec     //每秒钟强制写入磁盘一次，在性能和持久化方面做了很好的折中，推荐&lt;/li&gt;
+  &lt;li&gt;appendfsync no           //完全依赖os，性能最好,持久化没保证&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;aof&lt;/code&gt;的方式也同时带来了另一个问题。持久化文件会变的越来越大。例如我们调用&lt;code class=&quot;highlighter-rouge&quot;&gt;incr test&lt;/code&gt;命令100次，文件中必须保存全部的100条命令，其实有99条都是多余的。因为要恢复数据库的状态其实文件中保存一条&lt;code class=&quot;highlighter-rouge&quot;&gt;set test 100&lt;/code&gt;就够了。为了压缩aof的持久化文件。&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;提供了&lt;code class=&quot;highlighter-rouge&quot;&gt;bgrewriteaof&lt;/code&gt;命令。收到此命令&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;将使用与快照类似的方式将内存中的数据以命令的方式保存到临时文件中，最后替换原来的文件。具体过程如下&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;调用&lt;code class=&quot;highlighter-rouge&quot;&gt;fork&lt;/code&gt; ，现在有父子两个进程&lt;/li&gt;
+  &lt;li&gt;子进程根据内存中的数据库快照，往临时文件中写入重建数据库状态的命令&lt;/li&gt;
+  &lt;li&gt;父进程继续处理&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;请求，除了把写命令写入到原来的&lt;code class=&quot;highlighter-rouge&quot;&gt;aof&lt;/code&gt;文件中。同时把收到的写命令缓存起来。这样就能保证如果子进程重写失败的话并不会出问题。&lt;/li&gt;
+  &lt;li&gt;当子进程把快照内容写入已命令方式写到临时文件中后，子进程发信号通知父进程。然后父进程把缓存的写命令也写入到临时文件。&lt;/li&gt;
+  &lt;li&gt;现在父进程可以使用临时文件替换老的&lt;code class=&quot;highlighter-rouge&quot;&gt;aof&lt;/code&gt;文件，并重命名，后面收到的写命令也开始往新的aof文件中追加。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;需要注意到是重写aof文件的操作，并没有读取旧的aof文件，而是将整个内存中的数据库内容用命令的方式重写了一个新的aof文件,这点和快照有点类似。&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p id=&quot;master-slave&quot;&gt;&lt;/p&gt;
+&lt;h3 id=&quot;主从复制&quot;&gt;&lt;a href=&quot;#master-slave&quot;&gt;主从复制&lt;/a&gt;&lt;/h3&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Redis&lt;/code&gt;主从复制配置和使用都非常简单。通过主从复制可以允许多个&lt;code class=&quot;highlighter-rouge&quot;&gt;slave server&lt;/code&gt;拥有和&lt;code class=&quot;highlighter-rouge&quot;&gt;master server&lt;/code&gt;相同的数据库副本。&lt;/p&gt;
+
+&lt;p&gt;关于&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;主从复制的一些特点&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;master&lt;/code&gt;可以有多个&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;除了多个&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;连到相同的&lt;code class=&quot;highlighter-rouge&quot;&gt;master&lt;/code&gt;外，&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;也可以连接其他&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;形成图状结构&lt;/li&gt;
+  &lt;li&gt;主从复制不会阻塞&lt;code class=&quot;highlighter-rouge&quot;&gt;master&lt;/code&gt;。也就是说当一个或多个&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;与&lt;code class=&quot;highlighter-rouge&quot;&gt;master&lt;/code&gt;进行初次同步数据时，&lt;code class=&quot;highlighter-rouge&quot;&gt;master&lt;/code&gt;可以继续处理&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;发来的请求。相反&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;在初次同步数据时则会阻塞不能处理client的请求。&lt;/li&gt;
+  &lt;li&gt;主从复制可以用来提高系统的可伸缩性,我们可以用多个&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;专门用于&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;的读请求，比如&lt;code class=&quot;highlighter-rouge&quot;&gt;sort&lt;/code&gt;操作可以使用&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;来处理。也可以用来做简单的数据冗余&lt;/li&gt;
+  &lt;li&gt;可以在&lt;code class=&quot;highlighter-rouge&quot;&gt;master&lt;/code&gt;禁用数据持久化，只需要注释掉&lt;code class=&quot;highlighter-rouge&quot;&gt;master&lt;/code&gt;配置文件中的所有&lt;code class=&quot;highlighter-rouge&quot;&gt;save&lt;/code&gt;配置，然后只在&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;上配置数据持久化。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;下面介绍下主从复制的过程&lt;/p&gt;
+
+&lt;p&gt;当设置好&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;服务器后，&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;会建立和&lt;code class=&quot;highlighter-rouge&quot;&gt;master&lt;/code&gt;的连接，然后发送&lt;code class=&quot;highlighter-rouge&quot;&gt;sync&lt;/code&gt;命令。&lt;/p&gt;
+
+&lt;p&gt;无论是第一次同步建立的连接还是连接断开后的重新连接，&lt;code class=&quot;highlighter-rouge&quot;&gt;master&lt;/code&gt;都会启动一个后台进程，将数据库快照保存到文件中，同时&lt;code class=&quot;highlighter-rouge&quot;&gt;master&lt;/code&gt;主进程会开始收集新的写命令并缓存起来。后台进程完成写文件后，&lt;code class=&quot;highlighter-rouge&quot;&gt;master&lt;/code&gt;就发送文件给&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;将文件保存到磁盘上，然后加载到内存恢复数据库快照到&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;上。&lt;/p&gt;
+
+&lt;p&gt;接着&lt;code class=&quot;highlighter-rouge&quot;&gt;master&lt;/code&gt;就会把缓存的命令转发给&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;。而且后续&lt;code class=&quot;highlighter-rouge&quot;&gt;master&lt;/code&gt;收到的写命令都会通过开始建立的连接发送给&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;从&lt;code class=&quot;highlighter-rouge&quot;&gt;master&lt;/code&gt;到&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;的同步数据的命令和从&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;发送的命令使用相同的协议格式。当&lt;code class=&quot;highlighter-rouge&quot;&gt;master&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;的连接断开时&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;可以自动重新建立连接。&lt;/p&gt;
+
+&lt;p&gt;如果&lt;code class=&quot;highlighter-rouge&quot;&gt;master&lt;/code&gt;同时收到多个&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;发来的同步连接命令，只会使用启动一个进程来写数据库镜像，然后发送给所有&lt;code class=&quot;highlighter-rouge&quot;&gt;slave&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;配置slave服务器很简单，只需要在配置文件中加入如下配置&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;slaveof 192.168.1.1 6379  #指定master的ip和端口
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;hr /&gt;
+
+&lt;p id=&quot;swapmemory&quot;&gt;&lt;/p&gt;
+&lt;h3 id=&quot;虚拟内存&quot;&gt;&lt;a href=&quot;#swapmemory&quot;&gt;虚拟内存&lt;/a&gt;&lt;/h3&gt;
+
+&lt;p&gt;首先说明下&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;的虚拟内存与&lt;code class=&quot;highlighter-rouge&quot;&gt;os&lt;/code&gt;的虚拟内存不是一码事，但是思路和目的都是相同的。就是暂时把不经常访问的数据从内存交换到磁盘中，从而腾出宝贵的内存空间用于其他需要访问的数据。尤其是对于&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;这样的内存数据库，内存总是不够用的。除了可以将数据分割到多个&lt;code class=&quot;highlighter-rouge&quot;&gt;redis server&lt;/code&gt;外。另外的能够提高数据库容量的办法就是使用&lt;code class=&quot;highlighter-rouge&quot;&gt;vm&lt;/code&gt;把那些不经常访问的数据交换的磁盘上。&lt;/p&gt;
+
+&lt;p&gt;如果我们的存储的数据总是有少部分数据被经常访问，大部分数据很少被访问，对于网站来说确实总是只有少量用户经常活跃。当少量数据被经常访问时，使用vm不但能提高单台&lt;code class=&quot;highlighter-rouge&quot;&gt;redis server&lt;/code&gt;数据库的容量，而且也不会对性能造成太多影响。&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;没有使用&lt;code class=&quot;highlighter-rouge&quot;&gt;os&lt;/code&gt;提供的虚拟内存机制而是自己在用户态实现了自己的虚拟内存机制,作者在自己的&lt;code class=&quot;highlighter-rouge&quot;&gt;blog&lt;/code&gt;专门解释了其中原因。&lt;a href=&quot;http://antirez.com/post/redis-virtual-memory-story.html&quot;&gt;http://antirez.com/post/redis-virtual-memory-story.html&lt;/a&gt;&lt;/p&gt;
+
+&lt;h5 id=&quot;主要的理由有两点&quot;&gt;主要的理由有两点&lt;/h5&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;os&lt;/code&gt;的虚拟内存是已4k页面为最小单位进行交换的。而&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;的大多数对象都远小于4k，所以一个os页面上可能有多个&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;对象。另外&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;的集合对象类型如&lt;code class=&quot;highlighter-rouge&quot;&gt;list&lt;/code&gt;,&lt;code class=&quot;highlighter-rouge&quot;&gt;set&lt;/code&gt;可能存在与多个os页面上。最终可能造成只有10%key被经常访问，但是所有&lt;code class=&quot;highlighter-rouge&quot;&gt;os&lt;/code&gt;页面都会被&lt;code class=&quot;highlighter-rouge&quot;&gt;os&lt;/code&gt;认为是活跃的，这样只有内存真正耗尽时os才会交换页面。&lt;/li&gt;
+  &lt;li&gt;相比于os的交换方式。&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;可以将被交换到磁盘的对象进行压缩,保存到磁盘的对象可以去除指针和对象元数据信息。一般压缩后的对象会比内存中的对象小10倍。这样&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;的vm会比os vm能少做很多io操作。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h5 id=&quot;下面是vm相关配置&quot;&gt;下面是vm相关配置&lt;/h5&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;vm-enabled yes                    #开启vm功能&lt;/li&gt;
+  &lt;li&gt;vm-swap-file /tmp/redis.swap      #交换出来的value保存的文件路径/tmp/redis.swap&lt;/li&gt;
+  &lt;li&gt;vm-max-memory 1000000             #redis使用的最大内存上限，超过上限后redis开始交换value到磁盘文件中。&lt;/li&gt;
+  &lt;li&gt;vm-page-size 32                   #每个页面的大小32个字节&lt;/li&gt;
+  &lt;li&gt;vm-pages 134217728                #最多使用在文件中使用多少页面,交换文件的大小 = vm-page-size * vm-pages&lt;/li&gt;
+  &lt;li&gt;vm-max-threads 4                  #用于执行value对象换入换出的工作线程数量。0表示不使用工作线程（后面介绍)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;的&lt;code class=&quot;highlighter-rouge&quot;&gt;vm&lt;/code&gt;在设计上为了保证&lt;code class=&quot;highlighter-rouge&quot;&gt;key&lt;/code&gt;的查找速度，只会将&lt;code class=&quot;highlighter-rouge&quot;&gt;value&lt;/code&gt;交换到&lt;code class=&quot;highlighter-rouge&quot;&gt;swap&lt;/code&gt;文件中。所以如果是内存问题是由于太多&lt;code class=&quot;highlighter-rouge&quot;&gt;value&lt;/code&gt;很小的&lt;code class=&quot;highlighter-rouge&quot;&gt;key&lt;/code&gt;造成的，那么&lt;code class=&quot;highlighter-rouge&quot;&gt;vm&lt;/code&gt;并不能解决。&lt;/p&gt;
+
+&lt;p&gt;和os一样&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;也是按页面来交换对象的。&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;规定同一个页面只能保存一个对象。但是一个对象可以保存在多个页面中。&lt;/p&gt;
+
+&lt;p&gt;在&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;使用的内存没超过&lt;code class=&quot;highlighter-rouge&quot;&gt;vm-max-memory&lt;/code&gt;之前是不会交换任何&lt;code class=&quot;highlighter-rouge&quot;&gt;value&lt;/code&gt;的。当超过最大内存限制后，&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;会选择较老的对象。如果两个对象一样老会优先交换比较大的对象，精确的公式&lt;code class=&quot;highlighter-rouge&quot;&gt;swappability = age*log(size_in_memory)&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;对于&lt;code class=&quot;highlighter-rouge&quot;&gt;vm-page-size&lt;/code&gt;的设置应该根据自己的应用将页面的大小设置为可以容纳大多数对象的大小。太大了会浪费磁盘空间，太小了会造成交换文件出现碎片。&lt;/p&gt;
+
+&lt;p&gt;对于交换文件中的每个页面，&lt;code class=&quot;highlighter-rouge&quot;&gt;redis&lt;/code&gt;会在内存中对应一个&lt;code class=&quot;highlighter-rouge&quot;&gt;1bit&lt;/code&gt;值来记录页面的空闲状态。所以像上面配置中页面数量(&lt;code class=&quot;highlighter-rouge&quot;&gt;vm-pages 134217728&lt;/code&gt;)会占用16M内存用来记录页面空闲状态。`&lt;/p&gt;
+
+&lt;p&gt;vm-max-threads&lt;code class=&quot;highlighter-rouge&quot;&gt;表示用做交换任务的线程数量。如果大于0推荐设为服务器的&lt;/code&gt;cpu core`的数量。如果是0则交换过程在主线程进行。&lt;/p&gt;
+
+&lt;h5 id=&quot;参数配置讨论完后在来简单介绍下vm是如何工作的&quot;&gt;参数配置讨论完后，在来简单介绍下vm是如何工作的，&lt;/h5&gt;
+
+&lt;h6 id=&quot;当vm-max-threads设为0时blocking-vm&quot;&gt;当&lt;code class=&quot;highlighter-rouge&quot;&gt;vm-max-threads&lt;/code&gt;设为0时(&lt;code class=&quot;highlighter-rouge&quot;&gt;Blocking VM&lt;/code&gt;)&lt;/h6&gt;
+
+&lt;p&gt;** 换出 **&lt;/p&gt;
+
+&lt;p&gt;主线程定期检查发现内存超出最大上限后，会直接已阻塞的方式,将选中的对象保存到&lt;code class=&quot;highlighter-rouge&quot;&gt;swap&lt;/code&gt;文件中，并释放对象占用的内存,此过程会一直重复直到下面条件满足&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;内存使用降到最大限制以下&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;swap&lt;/code&gt;文件满了&lt;/li&gt;
+  &lt;li&gt;几乎全部的对象都被交换到磁盘了&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;** 换入 **&lt;/p&gt;
+
+&lt;p&gt;当有&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;请求&lt;code class=&quot;highlighter-rouge&quot;&gt;value&lt;/code&gt;被换出的&lt;code class=&quot;highlighter-rouge&quot;&gt;key&lt;/code&gt;时。主线程会以阻塞的方式从文件中加载对应的&lt;code class=&quot;highlighter-rouge&quot;&gt;value&lt;/code&gt;对象，加载时此时会阻塞所以&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;。然后处理&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;的请求&lt;/p&gt;
+
+&lt;h6 id=&quot;当vm-max-threads大于0threaded-vm&quot;&gt;当&lt;code class=&quot;highlighter-rouge&quot;&gt;vm-max-threads&lt;/code&gt;大于0(&lt;code class=&quot;highlighter-rouge&quot;&gt;Threaded VM&lt;/code&gt;)&lt;/h6&gt;
+
+&lt;p&gt;** 换出 **&lt;/p&gt;
+
+&lt;p&gt;当主线程检测到使用内存超过最大上限，会将选中的要交换的对象信息放到一个队列中交由工作线程后台处理，主线程会继续处理&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;请求。&lt;/p&gt;
+
+&lt;p&gt;** 换入 **&lt;/p&gt;
+
+&lt;p&gt;如果有&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;请求的&lt;code class=&quot;highlighter-rouge&quot;&gt;key&lt;/code&gt;被换出了，主线程先阻塞发出命令的&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;,然后将加载对象的信息放到一个队列中，让工作线程去加载。加载完毕后工作线程通知主线程。主线程再执行&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;的命令。这种方式只阻塞请求&lt;code class=&quot;highlighter-rouge&quot;&gt;value&lt;/code&gt;被换出&lt;code class=&quot;highlighter-rouge&quot;&gt;key&lt;/code&gt;的&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;总的来说&lt;code class=&quot;highlighter-rouge&quot;&gt;blocking vm&lt;/code&gt;的方式总的性能会好一些，因为不需要线程同步，创建线程和恢复被阻塞的&lt;code class=&quot;highlighter-rouge&quot;&gt;client&lt;/code&gt;等开销。但是也相应的牺牲了响应性。&lt;code class=&quot;highlighter-rouge&quot;&gt;threaded vm&lt;/code&gt;的方式主线程不会阻塞在磁盘io上，所以响应性更好。&lt;/p&gt;
+
+&lt;p&gt;如果我们的应用不太经常发生换入换出，而且也不太在意有点延迟的话则推荐使用&lt;code class=&quot;highlighter-rouge&quot;&gt;blocking vm&lt;/code&gt;的方式。&lt;/p&gt;
+
+&lt;p&gt;关于&lt;code class=&quot;highlighter-rouge&quot;&gt;redis vm&lt;/code&gt;的更详细介绍可以参考下面链接&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;http://antirez.com/post/redis-virtual-memory-story.html&quot;&gt;http://antirez.com/post/redis-virtual-memory-story.html&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://redis.io/topics/internals-vm&quot;&gt;http://redis.io/topics/internals-vm&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;hr /&gt;
+
+&lt;p id=&quot;documents&quot;&gt;&lt;/p&gt;
+&lt;h3 id=&quot;文档&quot;&gt;&lt;a href=&quot;#documents&quot;&gt;文档&lt;/a&gt;&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;http://redisdoc.com/index.html&quot;&gt;http://redisdoc.com/index.html&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/andymccurdy/redis-py&quot;&gt;https://github.com/andymccurdy/redis-py&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;hr /&gt;
+
+&lt;h3 id=&quot;end&quot;&gt;END&lt;/h3&gt;
+
+</description>
+        <pubDate>Tue, 19 Sep 2017 23:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2017/09/19/redis-advanced/</link>
+        <guid isPermaLink="true">http://localhost:4000/2017/09/19/redis-advanced/</guid>
+        
+        <category>数据库</category>
+        
+        <category>Redis</category>
+        
+        
+      </item>
     
       <item>
         <title>Python Click Command 快速入门</title>

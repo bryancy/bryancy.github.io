@@ -154,6 +154,69 @@
             ">
     			
 <div class="post-preview">
+    <a href="/2017/09/19/io-reuse/">
+        <h2 class="post-title">
+            IO多路复用
+        </h2>
+        
+        <h3 class="post-subtitle">
+            select、poll、epoll模型比较
+        </h3>
+        
+        <div class="post-content-preview">
+            select、poll、Epoll模型
+select模型
+
+  最大并发数限制，因为一个进程所打开的FD（文件描述符）是有限制的，由FD_SETSIZE设置，默认值是1024/2048，因此Select模型的最大并发数就被相应限制了。自己改改这个FD_SETSIZE？想法虽好，可是先看看下面吧…
+  效率问题，select每次调用都会线性扫描全部的FD集合，这样效率就会呈现线性下降，把FD_...
+        </div>
+    </a>
+    <p class="post-meta">
+        Posted by bryancy on September 19, 2017
+    </p>
+</div>
+<hr>
+
+<div class="post-preview">
+    <a href="/2017/09/19/redis-advanced/">
+        <h2 class="post-title">
+            Redis进阶教程
+        </h2>
+        
+        <h3 class="post-subtitle">
+            总结一下Redis的高级用法
+        </h3>
+        
+        <div class="post-content-preview">
+            目录
+
+
+  简介
+  排序
+  事物
+  管道
+  发布/订阅
+  持久化
+  主从复制
+  虚拟内存
+  文档
+
+
+
+
+
+简介
+
+Redis是一个开源的key-value数据库。它又经常被认为是一个数据结构服务器。因为它的value不仅包括基本的string类型还有list,set ,sorted set和hash类型。当然这些类型的元素也都是string类型。也就是说list,set这...
+        </div>
+    </a>
+    <p class="post-meta">
+        Posted by bryancy on September 19, 2017
+    </p>
+</div>
+<hr>
+
+<div class="post-preview">
     <a href="/2017/09/19/click-command/">
         <h2 class="post-title">
             Python Click Command 快速入门
@@ -362,9 +425,15 @@ Bryancy 的 Blog 就这么开通了。
                             
                         
                             
-                                <a href="/tags/#linux" title="linux" rel="2">
+                                <a href="/tags/#linux" title="linux" rel="3">
                                     linux
                                 </a>
+                            
+                        
+                            
+                        
+                            
+                        
                             
                         
                             
