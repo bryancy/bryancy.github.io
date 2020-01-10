@@ -1,22 +1,22 @@
 # Site settings
-title: Bryancy Blog
-SEOTitle: Bryancy Blog
+title: K.Chan Blog
+SEOTitle: K.Chan Blog
 header-img: img/home-bg.jpg
 email: xlchentj@gmail.com
 description: ""
 keyword: ""
-url: "https://bryancy.github.io/"              # your host, for absolute URL
+url: "https://kchanxl.github.io/"              # your host, for absolute URL
 baseurl: ""         # for example, '/blog' if your blog hosted on 'host/blog'
 
 
 
 # SNS settings
 RSS: false
-weibo_username:     bryancy
-zhihu_username:     bryancy
-github_username:    bryancy
+weibo_username:     
+zhihu_username:     kchanxl
+github_username:    kchanxl
 #twitter_username:  bryancy
-facebook_username:  bryancy
+facebook_username:  kchanxl
 
 
 
