@@ -2,7 +2,7 @@
 layout: post
 title: 饿了么的 Python SOA
 date: 2017-12-29 11:23
-author:     "Bryancy"
+author:     "k.chan"
 header-img: "img/home-bg-o.jpg"
 tags:
     - tech
